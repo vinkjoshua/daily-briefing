@@ -1,0 +1,44 @@
+[project]
+name = "daily-briefing"
+version = "1.0.0"
+description = "A daily briefing email written by Codex on your own ChatGPT plan, run free on GitHub Actions."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=43",
+    "jinja2>=3.1",
+    "markdown-it-py>=3",
+]
+
+[project.scripts]
+daily-briefing = "daily_briefing.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pyyaml>=6", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daily_briefing"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "D", "SIM"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

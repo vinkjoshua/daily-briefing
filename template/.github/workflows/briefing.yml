@@ -1,0 +1,33 @@
+name: Daily briefing
+on:
+  schedule:
+    # Three attempts, an hour apart (UTC). The first success sends; later ones exit in ~30s.
+    - cron: "41 4,5,6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Send again even if today's briefing was already sent
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: daily-briefing
+  cancel-in-progress: false
+jobs:
+  briefing:
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.ref }}
+      - uses: vinkjoshua/daily-briefing@v1
+        with:
+          timezone: Europe/Amsterdam
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-password: ${{ secrets.SMTP_PASSWORD }}
+          auth-key: ${{ secrets.BRIEFING_KEY }}
+          force: ${{ inputs.force || false }}

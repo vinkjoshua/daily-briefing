@@ -1,0 +1,98 @@
+name: Daily briefing
+description: A daily briefing email written by Codex on your own ChatGPT plan.
+author: vinkjoshua
+branding:
+  icon: mail
+  color: green
+inputs:
+  smtp-user:
+    description: SMTP login, sender and default recipient.
+    required: true
+  smtp-password:
+    description: SMTP password (for Gmail an App Password).
+    required: true
+  auth-key:
+    description: Random string of 32+ characters that encrypts the saved Codex login.
+    required: true
+  timezone:
+    description: IANA timezone that defines "today".
+    default: Europe/Amsterdam
+  smtp-host:
+    description: SMTP host.
+    default: smtp.gmail.com
+  smtp-port:
+    description: 465 for implicit TLS, 587 for STARTTLS.
+    default: "465"
+  mail-to:
+    description: Recipient; defaults to smtp-user.
+    default: ""
+  model:
+    description: Optional Codex model override.
+    default: ""
+  reasoning-effort:
+    description: Codex reasoning effort.
+    default: high
+  codex-version:
+    description: Codex CLI version to install.
+    default: "0.160.0"
+  force:
+    description: Send even if today's briefing was already sent.
+    default: "false"
+  github-token:
+    description: Token used to commit state back to the repository.
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v10.2.0
+      with:
+        enable-cache: false
+    - id: guard
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        BRIEFING_TIMEZONE: ${{ inputs.timezone }}
+        BRIEFING_FORCE: ${{ inputs.force }}
+        HAS_AUTH_KEY: ${{ inputs.auth-key != '' }}
+      run: uv run --project "$GITHUB_ACTION_PATH" --frozen --no-dev --quiet daily-briefing guard
+    - if: steps.guard.outputs.skip != 'true'
+      uses: actions/setup-node@v7
+      with:
+        node-version: "22"
+    - if: steps.guard.outputs.skip != 'true'
+      shell: bash
+      env:
+        CODEX_VERSION: ${{ inputs.codex-version }}
+      run: |
+        npm install --global --no-fund --no-audit "@openai/codex@${CODEX_VERSION}"
+        # Codex's sandbox needs unprivileged user namespaces; Ubuntu 24.04 restricts them.
+        sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
+          || echo "::warning::Could not relax the user-namespace restriction; Codex's sandbox may fail."
+    - id: run
+      if: steps.guard.outputs.skip != 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        BRIEFING_TIMEZONE: ${{ inputs.timezone }}
+        BRIEFING_FORCE: ${{ inputs.force }}
+        SMTP_HOST: ${{ inputs.smtp-host }}
+        SMTP_PORT: ${{ inputs.smtp-port }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        MAIL_TO: ${{ inputs.mail-to }}
+        BRIEFING_KEY: ${{ inputs.auth-key }}
+        CODEX_MODEL: ${{ inputs.model }}
+        CODEX_EFFORT: ${{ inputs.reasoning-effort }}
+        CODEX_HOME: ${{ runner.temp }}/codex
+        REPO_PRIVATE: ${{ github.event.repository.private }}
+      run: uv run --project "$GITHUB_ACTION_PATH" --frozen --no-dev --quiet daily-briefing run
+    - id: persist
+      if: always() && steps.guard.outputs.skip != 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        BRIEFING_TIMEZONE: ${{ inputs.timezone }}
+        BRIEFING_KEY: ${{ inputs.auth-key }}
+        CODEX_HOME: ${{ runner.temp }}/codex
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: uv run --project "$GITHUB_ACTION_PATH" --frozen --no-dev --quiet daily-briefing persist
