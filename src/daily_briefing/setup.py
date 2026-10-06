@@ -27,6 +27,17 @@ PROVIDERS = {
     "fastmail": ("smtp.fastmail.com", 465),
 }
 REPO_FIELDS = "nameWithOwner,id,isPrivate,owner,isEmpty"
+INITIAL_FILES = (
+    "interests.md",
+    "README.md",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "briefing",
+    ".github/workflows/briefing.yml",
+    "state/seen.md",
+    "state/watchlist.md",
+)
 
 
 class SetupError(RuntimeError):
@@ -347,6 +358,41 @@ def _launch(root: Path, state: dict, gh: Path) -> int:
     return 0
 
 
+def _check_initial_git(root: Path, state: dict) -> tuple[str, ...]:
+    """Reject unrelated index entries and every unsafe initial outgoing tree, read-only."""
+    selected = state["sections"]
+    presets = {path.name for path in _starter().joinpath("sections").iterdir()}
+    if not selected or any(name not in presets for name in selected):
+        raise SetupError("Initial section selection does not match the starter presets.")
+    allowed = (*INITIAL_FILES, *(f"sections/{name}" for name in selected))
+    branch = git(root, "symbolic-ref", "--short", "HEAD", check=False)
+    if branch.returncode or branch.stdout.strip() != "main":
+        raise SetupError("Return to the setup's main branch before initial publication.")
+    for entry in git(root, "ls-files", "--stage", "-z").stdout.split("\0"):
+        if entry:
+            metadata, path = entry.split("\t", 1)
+            mode, _, stage = metadata.split()
+            if path not in allowed or mode not in ("100644", "100755") or stage != "0":
+                raise SetupError("Unsafe or unrelated staged files; index and files are preserved.")
+    if not git(root, "rev-parse", "--verify", "HEAD", check=False).returncode:
+        commits = git(root, "--no-replace-objects", "rev-list", "HEAD").stdout.splitlines()
+        for commit in commits:
+            tree = git(root, "--no-replace-objects", "ls-tree", "-r", "-z", commit).stdout
+            for entry in tree.split("\0"):
+                if entry:
+                    metadata, path = entry.split("\t", 1)
+                    mode, kind, _ = metadata.split()
+                    if path not in allowed or mode not in ("100644", "100755") or kind != "blob":
+                        raise SetupError(
+                            "Unsafe initial Git history, including earlier deleted "
+                            "files; index and files are preserved."
+                        )
+    for path in allowed:
+        if not (root / path).is_file() or (root / path).is_symlink():
+            raise SetupError("Initial starter files must be regular files.")
+    return allowed
+
+
 def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
     """Continue this setup's explicit preparation, creation and publication stages."""
     repo = _repo(gh, state["repo"]) if state.get("create_intent") else None
@@ -406,6 +452,7 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
     if not _confirm("Publish these accepted files"):
         print(f"Files saved. Resume with daily-briefing init {shlex.quote(str(root))}")
         return 0
+    allowed = _check_initial_git(root, state)
     if repo is None:
         if _repo(gh, state["repo"]) is not None:
             raise SetupError(
@@ -449,21 +496,9 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
         git(root, "remote", "add", "origin", remote)
     elif origin.stdout.strip() != remote:
         raise SetupError("Local origin does not match this setup repository.")
-    # Only starter and accepted personalization paths are included in the initial commit.
-    git(
-        root,
-        "add",
-        "--",
-        "interests.md",
-        "sections",
-        "state",
-        "README.md",
-        ".gitignore",
-        "AGENTS.md",
-        "CLAUDE.md",
-        "briefing",
-        ".github/workflows/briefing.yml",
-    )
+    # Exact files keep unrelated untracked data in sections/state out of the index.
+    git(root, "add", "--", *allowed)
+    _check_initial_git(root, state)
     if (
         git(root, "rev-parse", "--verify", "HEAD", check=False).returncode
         or git(root, "diff", "--cached", "--quiet", check=False).returncode
@@ -478,6 +513,7 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
             "-m",
             "Set up my daily briefing",
         )
+    _check_initial_git(root, state)
     state["initial_sha"] = git(root, "rev-parse", "HEAD").stdout.strip()
     state["push_intent"] = True
     _save(root, state)

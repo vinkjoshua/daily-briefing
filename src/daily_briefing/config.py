@@ -78,8 +78,13 @@ class Config:
         def get(name: str, default: str = "") -> str:
             return (env.get(name) or "").strip() or default
 
+        password = env.get("SMTP_PASSWORD") or ""
         if require_secrets:
-            missing = [name for name in _REQUIRED if not get(name)]
+            missing = [
+                name
+                for name in _REQUIRED
+                if not (password if name == "SMTP_PASSWORD" else get(name))
+            ]
             if missing:
                 raise ConfigError("Missing required settings: " + ", ".join(missing))
             if len(get("BRIEFING_KEY")) < MIN_KEY_LENGTH:
@@ -114,7 +119,7 @@ class Config:
             smtp_host=get("SMTP_HOST", "smtp.gmail.com"),
             smtp_port=port,
             smtp_user=user,
-            smtp_password=get("SMTP_PASSWORD"),
+            smtp_password=password,
             mail_to=get("MAIL_TO", user),
             auth_key=get("BRIEFING_KEY"),
             codex_bin=get("CODEX_BIN", "codex"),

@@ -101,3 +101,39 @@ def test_custom_provider_password_spaces_are_preserved():
     FakeSMTP.instances.clear()
     send(message(), SmtpSettings("smtp.example.com", 465, "a@x", " a b "), smtp_factory=FakeSMTP)
     assert FakeSMTP.instances[0].calls[0] == ("login", "a@x", " a b ")
+
+
+def test_config_to_custom_smtp_preserves_exact_password():
+    from daily_briefing.config import Config
+
+    cfg = Config.from_env(
+        {
+            "SMTP_HOST": "smtp.example.com",
+            "SMTP_USER": "a@x",
+            "SMTP_PASSWORD": " leading middle trailing ",
+            "BRIEFING_KEY": "k" * 32,
+        }
+    )
+    FakeSMTP.instances.clear()
+    send(
+        message(),
+        SmtpSettings(cfg.smtp_host, cfg.smtp_port, cfg.smtp_user, cfg.smtp_password),
+        smtp_factory=FakeSMTP,
+    )
+    assert FakeSMTP.instances[0].calls[0] == ("login", "a@x", " leading middle trailing ")
+
+
+def test_config_to_gmail_normalizes_only_at_smtp_boundary():
+    from daily_briefing.config import Config
+
+    cfg = Config.from_env(
+        {"SMTP_USER": "a@x", "SMTP_PASSWORD": " abcd efgh ", "BRIEFING_KEY": "k" * 32}
+    )
+    assert cfg.smtp_password == " abcd efgh "
+    FakeSMTP.instances.clear()
+    send(
+        message(),
+        SmtpSettings(cfg.smtp_host, cfg.smtp_port, cfg.smtp_user, cfg.smtp_password),
+        smtp_factory=FakeSMTP,
+    )
+    assert FakeSMTP.instances[0].calls[0] == ("login", "a@x", "abcdefgh")

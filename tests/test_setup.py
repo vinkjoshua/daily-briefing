@@ -610,3 +610,88 @@ def test_fresh_auth_requests_workflow_scope_for_initial_workflow_push(setup_env,
     assert setup.initialize(root) == 0
     assert "--scopes" in logins[0] and logins[0][logins[0].index("--scopes") + 1] == "workflow"
     assert "--web" in logins[0] and "https" in logins[0]
+
+
+def prepare_without_publication(setup, root, monkeypatch):
+    answers(monkeypatch, initial(root)[:-2] + ["n"])
+    assert setup.initialize(root) == 0
+
+
+def commit_fixture(setup, root, message):
+    setup.git(
+        root,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.com",
+        "commit",
+        "-m",
+        message,
+    )
+
+
+def test_resumed_init_rejects_staged_extra_without_changing_index(setup_env, monkeypatch):
+    setup, fake, root, _ = setup_env
+    prepare_without_publication(setup, root, monkeypatch)
+    private = root / "auth.json"
+    private.write_text('{"refresh_token": "private-fixture"}\n')
+    setup.git(root, "add", "--", "auth.json")
+    index = (root / ".git/index").read_bytes()
+    answers(monkeypatch, ["a@example.com", "", "y", "n"])
+    assert setup.initialize(root) == 1
+    assert (root / ".git/index").read_bytes() == index
+    assert private.read_text() == '{"refresh_token": "private-fixture"}\n'
+    assert fake.repo is None and not fake.secrets and ("push",) not in fake.events
+
+
+def test_resumed_init_rejects_secret_bearing_deleted_ancestor(setup_env, monkeypatch):
+    setup, fake, root, _ = setup_env
+    prepare_without_publication(setup, root, monkeypatch)
+    private = root / "auth.json"
+    private.write_text('{"refresh_token": "private-fixture"}\n')
+    setup.git(root, "add", "--", "auth.json")
+    commit_fixture(setup, root, "Private local scratch")
+    setup.git(root, "rm", "--", "auth.json")
+    commit_fixture(setup, root, "Remove local scratch")
+    index = (root / ".git/index").read_bytes()
+    head = setup.git(root, "rev-parse", "HEAD").stdout
+    answers(monkeypatch, ["a@example.com", "", "y", "n"])
+    assert setup.initialize(root) == 1
+    assert (root / ".git/index").read_bytes() == index
+    assert setup.git(root, "rev-parse", "HEAD").stdout == head
+    assert fake.repo is None and not fake.secrets and ("push",) not in fake.events
+
+
+def test_resumed_init_rejects_symlink_in_deleted_ancestor(setup_env, monkeypatch):
+    setup, fake, root, _ = setup_env
+    prepare_without_publication(setup, root, monkeypatch)
+    interests = root / "interests.md"
+    accepted = interests.read_text()
+    interests.unlink()
+    interests.symlink_to("../outside-private-data")
+    setup.git(root, "add", "--", "interests.md")
+    commit_fixture(setup, root, "Local symlink")
+    interests.unlink()
+    interests.write_text(accepted)
+    setup.git(root, "add", "--", "interests.md")
+    commit_fixture(setup, root, "Restore regular interests")
+    index = (root / ".git/index").read_bytes()
+    answers(monkeypatch, ["a@example.com", "", "y", "n"])
+    assert setup.initialize(root) == 1
+    assert interests.read_text() == accepted
+    assert (root / ".git/index").read_bytes() == index
+    assert fake.repo is None and ("push",) not in fake.events
+
+
+@pytest.mark.parametrize("relative", ["state/auth.json", "sections/credentials.md"])
+def test_initial_staging_leaves_unrelated_nested_files_untracked(setup_env, monkeypatch, relative):
+    setup, fake, root, _ = setup_env
+    prepare_without_publication(setup, root, monkeypatch)
+    private = root / relative
+    private.write_text("private local data\n")
+    answers(monkeypatch, ["a@example.com", "", "y", "n"])
+    assert setup.initialize(root) == 0
+    files = setup.git(root, "ls-tree", "-r", "--name-only", "HEAD").stdout.splitlines()
+    assert relative not in files
+    assert private.read_text() == "private local data\n"
+    assert fake.events.count(("push",)) == 1

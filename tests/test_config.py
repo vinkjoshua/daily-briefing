@@ -89,3 +89,9 @@ def test_github_urls():
 def test_urls_empty_outside_actions():
     cfg = Config.from_env(env())
     assert (cfg.repo_url, cfg.workflow_url, cfg.run_url) == ("", "", "")
+
+
+@pytest.mark.parametrize("password", [" leading middle trailing ", "   "])
+def test_cloud_config_preserves_exact_custom_smtp_password(password):
+    cfg = Config.from_env(env(SMTP_HOST="smtp.example.com", SMTP_PASSWORD=password))
+    assert cfg.smtp_password == password
