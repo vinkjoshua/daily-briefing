@@ -1,6 +1,8 @@
 import hashlib
 import io
+import json
 import os
+import shutil
 import tarfile
 import zipfile
 from urllib.error import URLError
@@ -20,13 +22,46 @@ def bootstrap(monkeypatch, tmp_path):
     return module
 
 
-def archive(name, suffix, members=None, gh_root="gh_2.102.0_linux_amd64"):
+def codex_members(target="x86_64-unknown-linux-musl"):
+    metadata = {
+        "layoutVersion": 1,
+        "version": "0.160.0",
+        "target": target,
+        "variant": "codex",
+        "entrypoint": "bin/codex",
+        "resourcesDir": "codex-resources",
+        "pathDir": "codex-path",
+    }
+    members = [
+        ("bin/codex", b"#!/bin/sh\necho codex-cli 0.160.0\n", 0o755),
+        ("bin/codex-code-mode-host", b"#!/bin/sh\necho companion\n", 0o755),
+        ("codex-path/rg", b"#!/bin/sh\necho rg\n", 0o755),
+        ("codex-resources/zsh/bin/zsh", b"#!/bin/sh\necho zsh\n", 0o755),
+        ("codex-package.json", json.dumps(metadata).encode(), 0o644),
+    ]
+    if "linux" in target:
+        members.append(("codex-resources/bwrap", b"#!/bin/sh\necho bwrap\n", 0o755))
+    return members
+
+
+def archive(
+    name,
+    suffix,
+    members=None,
+    gh_root="gh_2.102.0_linux_amd64",
+    codex_target="x86_64-unknown-linux-musl",
+):
     version = "0.160.0" if name == "codex" else "2.102.0"
     script = (
         f"#!/bin/sh\nprintf '{'codex-cli' if name == 'codex' else 'gh version'} {version}\\n'\n"
     )
     root = "" if name == "codex" else gh_root + "/"
-    members = members or [(f"{root}bin/{name}", script.encode(), 0o755)]
+    if members is None:
+        members = (
+            codex_members(codex_target)
+            if name == "codex"
+            else [(f"{root}bin/{name}", script.encode(), 0o755)]
+        )
     stream = io.BytesIO()
     if suffix == ".zip":
         with zipfile.ZipFile(stream, "w") as zf:
@@ -66,7 +101,13 @@ def test_installs_pinned_package_and_reuses_cache(bootstrap, monkeypatch, name, 
     gh_system = "macOS" if system == "Darwin" else "linux"
     gh_arch = "amd64" if machine == "x86_64" else "arm64"
     gh_root = f"gh_2.102.0_{gh_system}_{gh_arch}"
-    payload = archive(name, suffix, gh_root=gh_root)
+    target = {
+        ("Darwin", "x86_64"): "x86_64-apple-darwin",
+        ("Darwin", "arm64"): "aarch64-apple-darwin",
+        ("Linux", "x86_64"): "x86_64-unknown-linux-musl",
+        ("Linux", "arm64"): "aarch64-unknown-linux-musl",
+    }[(system, machine)]
+    payload = archive(name, suffix, gh_root=gh_root, codex_target=target)
     download_fixture(monkeypatch, bootstrap, payload)
     binary = bootstrap.ensure_tool(name)
     assert binary.is_file() and os.access(binary, os.X_OK)
@@ -78,24 +119,15 @@ def test_installs_pinned_package_and_reuses_cache(bootstrap, monkeypatch, name, 
 
 
 def test_codex_companion_and_relative_files_are_preserved(bootstrap, monkeypatch):
-    payload = archive(
-        "codex",
-        ".tar.gz",
-        [
-            ("bin/codex", b"#!/bin/sh\necho codex-cli 0.160.0\n", 0o755),
-            ("bin/codex-code-mode-host", b"#!/bin/sh\necho companion\n", 0o755),
-            ("codex-resources/package.txt", b"package data", 0o644),
-            ("codex-path/rg", b"#!/bin/sh\necho rg\n", 0o755),
-            ("codex-package.json", b'{"entrypoint":"bin/codex"}', 0o644),
-        ],
-    )
+    members = codex_members() + [("codex-resources/package.txt", b"package data", 0o644)]
+    payload = archive("codex", ".tar.gz", members)
     download_fixture(monkeypatch, bootstrap, payload)
     binary = bootstrap.ensure_tool("codex")
     assert os.access(binary.with_name("codex-code-mode-host"), os.X_OK)
     root = binary.parent.parent
     assert (root / "codex-resources/package.txt").read_bytes() == b"package data"
     assert os.access(root / "codex-path/rg", os.X_OK)
-    assert (root / "codex-package.json").read_bytes() == b'{"entrypoint":"bin/codex"}'
+    assert json.loads((root / "codex-package.json").read_text())["entrypoint"] == "bin/codex"
 
 
 @pytest.mark.parametrize("name", ["codex", "gh"])
@@ -228,3 +260,62 @@ def test_unusable_cache_location_is_actionable(bootstrap, monkeypatch, tmp_path)
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
     with pytest.raises(bootstrap.BootstrapError, match="cache"):
         bootstrap.ensure_tool("gh")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "bin/codex-code-mode-host",
+        "codex-path/rg",
+        "codex-resources/zsh/bin/zsh",
+        "codex-resources/bwrap",
+    ],
+)
+@pytest.mark.parametrize("damage", ["missing", "nonexecutable"])
+def test_damaged_codex_companion_cache_is_reinstalled(bootstrap, monkeypatch, path, damage):
+    download_fixture(monkeypatch, bootstrap, archive("codex", ".tar.gz"))
+    binary = bootstrap.ensure_tool("codex")
+    companion = binary.parent.parent / path
+    if damage == "missing":
+        companion.unlink()
+    else:
+        companion.chmod(0o644)
+    assert bootstrap.ensure_tool("codex") == binary
+    assert companion.is_file() and os.access(companion, os.X_OK)
+
+
+@pytest.mark.parametrize("path", ["codex-resources", "codex-path", "codex-package.json"])
+def test_missing_codex_package_resources_are_reinstalled(bootstrap, monkeypatch, path):
+    download_fixture(monkeypatch, bootstrap, archive("codex", ".tar.gz"))
+    binary = bootstrap.ensure_tool("codex")
+    resource = binary.parent.parent / path
+    shutil.rmtree(resource) if resource.is_dir() else resource.unlink()
+    assert bootstrap.ensure_tool("codex") == binary
+    assert resource.exists()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "bin/codex-code-mode-host",
+        "codex-path/rg",
+        "codex-resources/zsh/bin/zsh",
+        "codex-resources/bwrap",
+    ],
+)
+def test_incomplete_codex_download_is_never_published(bootstrap, monkeypatch, tmp_path, path):
+    members = [member for member in codex_members() if member[0] != path]
+    download_fixture(monkeypatch, bootstrap, archive("codex", ".tar.gz", members))
+    with pytest.raises(bootstrap.BootstrapError, match="package|executable|version"):
+        bootstrap.ensure_tool("codex")
+    assert not list((tmp_path / "cache with spaces").rglob("codex"))
+
+
+@pytest.mark.parametrize("metadata", [b"not json", b"[]", b'{"version":"0.160.0"}'])
+def test_corrupt_codex_metadata_cache_is_reinstalled(bootstrap, monkeypatch, metadata):
+    download_fixture(monkeypatch, bootstrap, archive("codex", ".tar.gz"))
+    binary = bootstrap.ensure_tool("codex")
+    manifest = binary.parent.parent / "codex-package.json"
+    manifest.write_bytes(metadata)
+    assert bootstrap.ensure_tool("codex") == binary
+    assert json.loads(manifest.read_text())["target"] == "x86_64-unknown-linux-musl"

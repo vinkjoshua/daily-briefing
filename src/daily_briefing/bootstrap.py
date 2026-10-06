@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import platform
 import shutil
@@ -74,6 +75,46 @@ def _matches(binary: Path, name: str) -> bool:
         and first[0].startswith(prefix)
         and first[0][len(prefix) :].split()[:1] == [VERSIONS[name]]
     )
+
+
+def _package_matches(root: Path, binary: Path, name: str, target: str) -> bool:
+    """Check the pinned complete Codex layout before trusting its entrypoint."""
+    if name == "codex":
+        try:
+            if not all(
+                (root / directory).is_dir()
+                for directory in ("bin", "codex-resources", "codex-path")
+            ):
+                return False
+            metadata = json.loads((root / "codex-package.json").read_text(encoding="utf-8"))
+            expected = {
+                "layoutVersion": 1,
+                "version": VERSIONS[name],
+                "target": target,
+                "variant": "codex",
+                "entrypoint": "bin/codex",
+                "resourcesDir": "codex-resources",
+                "pathDir": "codex-path",
+            }
+            if not isinstance(metadata, dict) or any(
+                metadata.get(k) != v for k, v in expected.items()
+            ):
+                return False
+            executables = [
+                "bin/codex",
+                "bin/codex-code-mode-host",
+                "codex-path/rg",
+                "codex-resources/zsh/bin/zsh",
+            ]
+            if "linux" in target:
+                executables.append("codex-resources/bwrap")
+            if not all(
+                (root / path).is_file() and os.access(root / path, os.X_OK) for path in executables
+            ):
+                return False
+        except (OSError, UnicodeError, ValueError):
+            return False
+    return _matches(binary, name)
 
 
 def _safe_path(root: Path, name: str) -> Path:
@@ -152,6 +193,7 @@ def ensure_tool(name: str) -> Path:
     url, digest = ASSETS[key]
     filename = url.rsplit("/", 1)[1]
     zipped = filename.endswith(".zip")
+    target = filename.removeprefix("codex-package-").removesuffix(".tar.gz")
     relative = (
         Path("bin/codex")
         if name == "codex"
@@ -167,7 +209,7 @@ def ensure_tool(name: str) -> Path:
         parent.chmod(0o700)
         cache = parent / f"{name}-{VERSIONS[name]}-{system}-{arch}"
         binary = cache / relative
-        if _matches(binary, name):
+        if _package_matches(cache, binary, name, target):
             return binary
         if cache.exists():
             shutil.rmtree(cache)
@@ -189,9 +231,10 @@ def ensure_tool(name: str) -> Path:
             package = staging / "package"
             package.mkdir(mode=0o700)
             _extract(archive, package, zipped)
-            if not _matches(package / relative, name):
+            if not _package_matches(package, package / relative, name, target):
                 raise BootstrapError(
-                    f"The downloaded {name} executable has an invalid version or mode."
+                    f"The downloaded {name} package is incomplete or has an invalid "
+                    "executable/version."
                 )
             package.rename(cache)
     except (
