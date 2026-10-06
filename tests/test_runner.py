@@ -21,11 +21,13 @@ class FakeCodex:
         *,
         logged_in=True,
         device_ok=True,
+        device_result=None,
         exec_ok=True,
         probe_output="",
         reply="# Daily briefing — Test\n\n## Research\nHello\n",
     ):
         self.logged_in, self.device_ok, self.exec_ok = logged_in, device_ok, exec_ok
+        self.device_result = device_result
         self.probe_output, self.reply = probe_output, reply
         self.calls: list[str] = []
         self.prompt = ""
@@ -40,7 +42,9 @@ class FakeCodex:
         self.calls.append("device_login")
         on_prompt("https://auth.openai.com/codex/device", "ABCD-12345")
         self.logged_in = self.device_ok
-        return self.device_ok
+        if self.device_result is not None:
+            return self.device_result
+        return CodexResult(0, "done") if self.device_ok else CodexResult(1, "Device code expired")
 
     def exec(self, prompt, *, out_path=None, **kwargs):
         self.calls.append("exec")
@@ -245,3 +249,47 @@ def test_corrupt_notified_file_does_not_crash(workspace):
     assert run(config(workspace), deps) == 1
     assert len(sent) == 1
     assert "run failed" in sent[0][0]
+
+
+@pytest.mark.parametrize(
+    "result,expected",
+    [
+        (CodexResult(124, ""), "timed out"),
+        (CodexResult(1, "HTTP 503 service unavailable token=test-only-secret"), "unavailable"),
+        (CodexResult(1, "Device authorization disabled"), "disabled"),
+        (CodexResult(1, ""), "failed"),
+    ],
+)
+def test_dispatch_login_diagnoses_failure_without_leaking_output(workspace, result, expected):
+    codex = FakeCodex(logged_in=False, device_result=result)
+    deps, sent, logs = harness(codex)
+    assert run(config(workspace, GITHUB_EVENT_NAME="workflow_dispatch"), deps) == 1
+    assert "exec" not in codex.calls
+    assert expected in sent[-1][0]
+    assert "test-only-secret" not in str(sent) + str(logs)
+    if not result.output:
+        assert "disabled" not in sent[-1][0]
+
+
+def test_device_code_notice_flushes_before_login_completes(workspace, monkeypatch):
+    import io
+
+    class Output(io.StringIO):
+        flushed = False
+
+        def flush(self):
+            self.flushed = True
+            super().flush()
+
+    output = Output()
+    monkeypatch.setattr("sys.stdout", output)
+
+    class Login(FakeCodex):
+        def device_login(self, on_prompt, timeout=960):
+            result = super().device_login(on_prompt, timeout)
+            assert "Approve your login" in output.getvalue()
+            assert output.flushed
+            return result
+
+    deps = Deps(codex=Login(logged_in=False), send=lambda md, icons: None, now=lambda: NOW)
+    assert run(config(workspace, GITHUB_EVENT_NAME="workflow_dispatch"), deps) == 0

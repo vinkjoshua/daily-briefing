@@ -51,3 +51,25 @@ def parse_device_prompt(output: str) -> tuple[str, str] | None:
     url = _DEVICE_URL.search(text)
     code = _DEVICE_CODE.search(text)
     return (url.group(0), code.group(0)) if url and code else None
+
+
+def device_login_failure(output: str, returncode: int) -> str:
+    """Describe device-login failure without exposing arbitrary subprocess output.
+
+    Args:
+        output: Captured login diagnostics, used only for classification.
+        returncode: CLI exit status, including 124 for a timeout.
+
+    Returns:
+        Actionable text safe for logs and failure emails.
+    """
+    text = strip_ansi(output).lower()
+    if returncode == 124:
+        return "Codex device login timed out. Press Run workflow again."
+    if "expired" in text:
+        return "The login code expired before it was approved. Press Run workflow again."
+    if "disabled" in text and ("device" in text or "authorization" in text):
+        return "Codex device login is disabled. Enable device-code login in your account settings."
+    if any(word in text for word in ("503", "429", "unavailable", "connection", "network")):
+        return "Codex login service is unavailable. Try Run workflow again later."
+    return f"Codex device login failed (exit {returncode}). Press Run workflow again."

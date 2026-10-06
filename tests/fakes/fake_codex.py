@@ -38,6 +38,15 @@ def main() -> int:
     args = sys.argv[1:]
     if args[:2] == ["login", "--device-auth"]:
         record(args)
+        mode = os.environ.get("FAKE_CODEX_LOGIN", "approve")
+        if mode == "silent":
+            return 1
+        if mode == "error":
+            print("HTTP 503 service unavailable")
+            return 3
+        if mode == "hang":
+            time.sleep(30)
+            return 0
         sys.stdout.write(DEVICE_PROMPT)
         sys.stdout.flush()
         time.sleep(0.2)

@@ -24,6 +24,26 @@ Setup confirms your personal GitHub account, tests email before creating a priva
 repository, collects interests and sections, and installs secrets before publishing
 the workflow. Review its summary, then optionally launch your first cloud run.
 Rerun `daily-briefing init my-briefing` after cancelling to preserve accepted files.
+
+From your instance directory, generate a local preview:
+
+```bash
+./briefing try --open
+./briefing try --section 10-research
+```
+
+`try` uses the timezone, model and reasoning effort written literally in
+`.github/workflows/briefing.yml`. It reuses your local Codex browser login
+(`CODEX_HOME`, or `~/.codex`) and its file, keyring or auto credential store.
+If login is needed, run the displayed Codex login command locally and try again. No cloud login or
+SMTP secrets are needed for a preview.
+
+Generation happens in a temporary directory containing your interests, selected
+sections and state. Only `preview.html` is written back; dedup state, archives and
+Git files remain intact. Existing Codex credentials may refresh normally. User
+config, rules and agent instructions are ignored during generation. Workflow
+expressions for preview settings and symlinked inputs/output are refused.
+The existing `daily-briefing preview MARKDOWN` command still renders a saved draft.
 The generated repository's `AGENTS.md` and `CLAUDE.md` explain the tuning loop.
 
 For browser-only setup:

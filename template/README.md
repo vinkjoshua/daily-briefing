@@ -29,6 +29,21 @@ personalization is preserved, and identity/progress are stored only under `.git`
 If a creation, push or launch outcome is uncertain, inspect the linked GitHub
 repository or Actions page first. Setup never blindly retries those operations,
 and an uncertain creation requires your explicit ownership confirmation.
+Preview before publishing:
+
+```bash
+./briefing try --open
+./briefing try --section 10-research
+```
+
+Use the exact section filename stem for `--section`. The command reuses your
+local Codex browser login (`CODEX_HOME` or `~/.codex`) and the literal timezone,
+model and reasoning effort in your workflow. Run the displayed Codex login command locally if asked.
+It writes `preview.html` atomically; your interests, sections, state, archives and
+Git repository are unchanged. Your local login may refresh normally. Generation
+ignores user config, rules and agent instructions. Symlinked inputs/output and
+workflow expressions for preview settings are refused.
+
 If an existing GitHub login cannot push workflow files, grant the workflow scope
 with `gh auth refresh --hostname github.com --scopes workflow`, then inspect the
 remote before pushing accepted files manually and resuming setup.

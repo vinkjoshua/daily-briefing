@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import signal
 import subprocess
 import threading
+import tomllib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -120,15 +122,32 @@ class Codex:
             "-",
             "--skip-git-repo-check",
             "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "-c",
+            "project_doc_max_bytes=0",
+            "-c",
+            'web_search="live"' if web_search else 'web_search="disabled"',
             "-C",
             str(self.workdir),
             "-s",
             sandbox,
             "-c",
-            f'model_reasoning_effort="{effort}"',
+            "model_reasoning_effort=" + json.dumps(effort),
         ]
-        if web_search:
-            args += ["-c", 'web_search="live"']
+        config = self.codex_home / "config.toml"
+        if config.is_file():
+            try:
+                store = tomllib.loads(config.read_text(encoding="utf-8")).get(
+                    "cli_auth_credentials_store", "file"
+                )
+            except tomllib.TOMLDecodeError as exc:
+                raise ValueError(
+                    "Cannot read Codex credential-store setting: invalid config.toml"
+                ) from exc
+            if not isinstance(store, str) or store not in {"file", "keyring", "auto", "ephemeral"}:
+                raise ValueError("Unsupported Codex credential-store setting in config.toml")
+            args += ["-c", "cli_auth_credentials_store=" + json.dumps(store)]
         if model:
             args += ["-m", model]
         if out_path is not None:
@@ -165,7 +184,9 @@ class Codex:
             timeout=300,
         )
 
-    def device_login(self, on_prompt: Callable[[str, str], None], timeout: float = 960) -> bool:
+    def device_login(
+        self, on_prompt: Callable[[str, str], None], timeout: float = 960
+    ) -> CodexResult:
         """Run `codex login --device-auth` and wait for the user to approve.
 
         Args:
@@ -173,7 +194,7 @@ class Codex:
             timeout: Seconds before the login process is killed.
 
         Returns:
-            True if Codex reports a successful login.
+            Exit code and combined output; 124 on timeout.
         """
         self.codex_home.mkdir(parents=True, exist_ok=True)
         proc = subprocess.Popen(
@@ -185,7 +206,13 @@ class Codex:
             env=self.child_env(),
             start_new_session=True,
         )
-        watchdog = threading.Timer(timeout, _kill_group, args=(proc,))
+        expired = threading.Event()
+
+        def expire() -> None:
+            expired.set()
+            _kill_group(proc)
+
+        watchdog = threading.Timer(timeout, expire)
         watchdog.start()
         seen, announced = "", False
         try:
@@ -195,6 +222,9 @@ class Codex:
                 if not announced and (parsed := parse_device_prompt(seen)):
                     on_prompt(*parsed)
                     announced = True
-            return proc.wait() == 0 and announced
+            returncode = proc.wait()
+            if expired.is_set():
+                return CodexResult(124, seen + f"\ncodex login timed out after {timeout:.0f}s")
+            return CodexResult(returncode, seen)
         finally:
             watchdog.cancel()

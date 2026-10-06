@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
-from daily_briefing.auth import is_auth_error
+from daily_briefing.auth import device_login_failure, is_auth_error
 from daily_briefing.codex import CodexResult
 from daily_briefing.config import Config
 from daily_briefing.login_store import restore_login
@@ -30,7 +30,9 @@ class CodexLike(Protocol):
         """Validate the login."""
         ...
 
-    def device_login(self, on_prompt: Callable[[str, str], None], timeout: float = 960) -> bool:
+    def device_login(
+        self, on_prompt: Callable[[str, str], None], timeout: float = 960
+    ) -> CodexResult:
         """Run the device-code login."""
         ...
 
@@ -50,7 +52,7 @@ class Deps:
     codex: CodexLike
     send: Callable[[str, Mapping[str, str]], None]
     now: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
-    log: Callable[[str], None] = print
+    log: Callable[[str], None] = field(default=lambda message: print(message, flush=True))
 
 
 def _tail(text: str, lines: int = 40) -> str:
@@ -99,10 +101,9 @@ def run(cfg: Config, deps: Deps) -> int:
                 deps.log(f"::notice title=Approve your login::Open {url} and enter {code}")
                 deps.send(device_code_notice(url, code), NOTICE_ICONS)
 
-            if not deps.codex.device_login(announce):
-                raise RunError(
-                    "The login code expired before it was approved. Press Run workflow again."
-                )
+            login = deps.codex.device_login(announce)
+            if not login.ok:
+                raise RunError(device_login_failure(login.output, login.returncode))
         draft = paths.draft(day)
         draft.parent.mkdir(parents=True, exist_ok=True)
         result = deps.codex.exec(
