@@ -447,6 +447,7 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
     _save(root, state)
     if not state.get("prepared"):
         _collect(root, state)
+    allowed = _check_initial_git(root, state)
     print(f"Publish {root} to private repository {state['repo']}?")
     print(f"Recipient: {state['recipient']}")
     print("Sections:")
@@ -458,7 +459,6 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
     if not _confirm("Publish these accepted files"):
         print(f"Files saved. Resume with daily-briefing init {shlex.quote(str(root))}")
         return 0
-    allowed = _check_initial_git(root, state)
     if repo is None:
         if _repo(gh, state["repo"]) is not None:
             raise SetupError(

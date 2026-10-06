@@ -1,6 +1,7 @@
 """Guided setup with fake network boundaries and real local Git repositories."""
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -654,6 +655,29 @@ def test_fresh_auth_requests_workflow_scope_for_initial_workflow_push(setup_env,
 def prepare_without_publication(setup, root, monkeypatch):
     answers(monkeypatch, initial(root)[:-2] + ["n"])
     assert setup.initialize(root) == 0
+
+
+def test_resumed_init_rejects_selected_fifo_before_summary_read(setup_env, monkeypatch, capsys):
+    setup, fake, root, _ = setup_env
+    prepare_without_publication(setup, root, monkeypatch)
+    selected = root / "sections/10-research.md"
+    selected.unlink()
+    os.mkfifo(selected)
+    accepted = (root / "interests.md").read_bytes()
+    read_text = Path.read_text
+
+    def reject_fifo_read(path, *args, **kwargs):
+        if path == selected:
+            pytest.fail("Opened nonregular selected section before validation")
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", reject_fifo_read)
+    answers(monkeypatch, ["a@example.com", "", "n"])
+    assert setup.initialize(root) == 1
+    assert "regular files" in capsys.readouterr().out
+    assert (root / "interests.md").read_bytes() == accepted
+    assert not selected.is_file() and selected.exists()
+    assert fake.repo is None and not fake.secrets and ("push",) not in fake.events
 
 
 def commit_fixture(setup, root, message):
