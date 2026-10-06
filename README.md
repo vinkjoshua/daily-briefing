@@ -6,13 +6,27 @@ A GitHub Action that has Codex research your interests every morning and email y
 
 ## How it works
 
-1. **Schedule.** The workflow runs three times a day, at 41 past 4, 5 and 6 UTC.
+1. **Schedule.** The workflow runs at your chosen local time, with up to two same-day hourly retries. The browser starter defaults to 07:00, 08:00 and 09:00 UTC.
 2. **Guard.** If today's briefing was already sent, the run stops. The first attempt that succeeds sends; the others skip.
 3. **Codex with live web search.** Codex reads your `interests.md` and one file per section, searches the web and writes the briefing as Markdown.
 4. **Green HTML email.** The engine renders the Markdown as an HTML email and sends it over SMTP.
 5. **State and login committed back.** Dedup state, the briefing archive and your encrypted Codex login are committed to your repository.
 
 ## Quick start
+
+For guided setup, install Git and uv, then run:
+
+```sh
+uv tool run --from daily-briefing==1.1.0 daily-briefing init my-briefing
+```
+
+Setup confirms your personal GitHub account, tests email before creating a private
+repository, collects interests and sections, and installs secrets before publishing
+the workflow. Review its summary, then optionally launch your first cloud run.
+Rerun `daily-briefing init my-briefing` after cancelling to preserve accepted files.
+The generated repository's `AGENTS.md` and `CLAUDE.md` explain the tuning loop.
+
+For browser-only setup:
 
 Use the starter template: [vinkjoshua/daily-briefing-template](https://github.com/vinkjoshua/daily-briefing-template).
 
@@ -71,7 +85,7 @@ Max 3 items. Papers from the last 7 days in the research areas in `interests.md`
 Per item: title, link, how the method works, limitations, one experiment I could try.
 ```
 
-The starter template ships five sections: Research, Open-source radar, AI events & talks, This week and Book ahead. Add, remove or reorder files to change the email.
+The starter template ships five sections: Research, Open-source radar, Professional events & talks, This week and Book ahead. Add, remove or reorder files to change the email.
 
 ## Security model
 

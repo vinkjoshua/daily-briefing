@@ -47,9 +47,9 @@ def test_factory_for_port():
 
 def test_send_implicit_tls_strips_password_spaces():
     FakeSMTP.instances.clear()
-    send(message(), SmtpSettings("smtp.x", 465, "a@x", "abcd efgh"), smtp_factory=FakeSMTP)
+    send(message(), SmtpSettings("smtp.gmail.com", 465, "a@x", "abcd efgh"), smtp_factory=FakeSMTP)
     smtp = FakeSMTP.instances[0]
-    assert (smtp.host, smtp.port) == ("smtp.x", 465)
+    assert (smtp.host, smtp.port) == ("smtp.gmail.com", 465)
     assert smtp.calls == [("login", "a@x", "abcdefgh"), ("send", "Hi")]
 
 
@@ -95,3 +95,9 @@ def test_default_factory_starttls_path_matches_smtplib_signature(monkeypatch):
     monkeypatch.setattr(smtplib, "SMTP", StrictSMTP)
     send(message(), SmtpSettings("smtp.x", 587, "a@x", "pw"), smtp_factory=None)
     assert _verifies(FakeSMTP.instances[0].starttls_context)
+
+
+def test_custom_provider_password_spaces_are_preserved():
+    FakeSMTP.instances.clear()
+    send(message(), SmtpSettings("smtp.example.com", 465, "a@x", " a b "), smtp_factory=FakeSMTP)
+    assert FakeSMTP.instances[0].calls[0] == ("login", "a@x", " a b ")

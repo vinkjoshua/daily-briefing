@@ -63,7 +63,7 @@ def send(
 
     Args:
         message: The email.
-        settings: Connection settings; spaces in the password are removed (Gmail shows them).
+        settings: Connection settings; only Gmail app password spaces are removed.
         smtp_factory: Override for tests; defaults to factory_for(settings.port).
     """
     factory = smtp_factory or factory_for(settings.port)
@@ -73,5 +73,10 @@ def send(
     with factory(settings.host, settings.port, timeout=60, **kwargs) as smtp:
         if settings.port != 465:
             smtp.starttls(context=ctx)
-        smtp.login(settings.user, settings.password.replace(" ", ""))
+        password = (
+            settings.password.replace(" ", "")
+            if settings.host.lower() == "smtp.gmail.com"
+            else settings.password
+        )
+        smtp.login(settings.user, password)
         smtp.send_message(message)

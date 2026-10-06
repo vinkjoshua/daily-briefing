@@ -32,7 +32,7 @@ def test_template_sections():
     assert [s.title for s in sections] == [
         "Research",
         "Open-source radar",
-        "AI events & talks",
+        "Professional events & talks",
         "This week",
         "Book ahead",
     ]
@@ -43,7 +43,7 @@ def test_template_sections():
 def test_workflow():
     wf = yaml.safe_load((TEMPLATE / ".github/workflows/briefing.yml").read_text())
     triggers = wf[True] if True in wf else wf["on"]  # PyYAML parses `on` as True
-    assert triggers["schedule"] == [{"cron": "41 4,5,6 * * *"}]
+    assert triggers["schedule"] == [{"cron": "0 7,8,9 * * *", "timezone": "UTC"}]
     assert "workflow_dispatch" in triggers
     assert wf["permissions"] == {"contents": "write"}
     assert wf["concurrency"]["cancel-in-progress"] is False

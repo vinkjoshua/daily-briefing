@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import sys
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from daily_briefing import mailer
+from daily_briefing import mailer, setup
 from daily_briefing.codex import Codex
 from daily_briefing.config import Config, ConfigError
 from daily_briefing.login_store import save_login_if_changed
@@ -129,7 +130,12 @@ def _preview(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     return 0
 
 
+def _init(args: argparse.Namespace, env: Mapping[str, str]) -> int:
+    return setup.initialize(Path(args.directory))
+
+
 COMMANDS: dict[str, Callable[[argparse.Namespace, Mapping[str, str]], int]] = {
+    "init": _init,
     "guard": _guard,
     "run": _run,
     "persist": _persist,
@@ -149,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(prog="daily-briefing")
     sub = parser.add_subparsers(dest="command", required=True)
+    init = sub.add_parser("init", help="Set up a personal daily briefing")
+    init.add_argument("directory", nargs="?", default="my-briefing")
     sub.add_parser("guard", help="Write skip=true|false to $GITHUB_OUTPUT")
     sub.add_parser("run", help="Generate and email today's briefing")
     sub.add_parser("persist", help="Save the login and commit state")
@@ -161,6 +169,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return COMMANDS[args.command](args, os.environ)
+    except setup.SetupCancelled as exc:
+        print(f"Setup cancelled. Resume with daily-briefing init {shlex.quote(str(exc.directory))}")
+        return 130
     except ConfigError as exc:
         print(f"::error::{exc}")
         return 1

@@ -1,8 +1,9 @@
 name: Daily briefing
 on:
   schedule:
-    # Three attempts, an hour apart (UTC). The first success sends; later ones exit in ~30s.
-    - cron: "41 4,5,6 * * *"
+    # The first success sends; later attempts skip. Times use this IANA timezone.
+    - cron: "0 7,8,9 * * *"
+      timezone: "UTC"
   workflow_dispatch:
     inputs:
       force:
@@ -26,7 +27,10 @@ jobs:
           ref: ${{ github.ref }}
       - uses: vinkjoshua/daily-briefing@v1
         with:
-          timezone: Europe/Amsterdam
+          timezone: "UTC"
+          smtp-host: "smtp.gmail.com"
+          smtp-port: "465"
+          mail-to: ""
           smtp-user: ${{ secrets.SMTP_USER }}
           smtp-password: ${{ secrets.SMTP_PASSWORD }}
           auth-key: ${{ secrets.BRIEFING_KEY }}
