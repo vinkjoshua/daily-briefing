@@ -91,6 +91,13 @@ local commit with recovery instructions. If a push fails, inspect the remote and
 retry `./briefing publish`; never force-push. If dispatch is uncertain, inspect
 Actions before requesting another run.
 
+For rejected outgoing merges or forbidden history, keep this checkout and use
+the exact GitHub CLI `repo clone` command displayed in the error to make a separate
+clean clone of your private repository. Its CLI path works even without `gh` on
+PATH. Copy only accepted allowlisted personalization; never copy the old `.git`,
+history or credentials. In the clean clone, run `./briefing validate --dir .` and
+`./briefing publish`. Publication never rewrites the original history automatically.
+
 ## If it needs you
 - **"Reconnect needed" email:** whenever convenient, press **Run workflow** and enter the emailed code. Nothing expires until you press the button.
 - **"Run failed" email:** it retries at the next scheduled attempt. The email links to the log.

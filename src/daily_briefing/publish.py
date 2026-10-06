@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from pathlib import Path, PurePosixPath
 
 from daily_briefing import bootstrap
@@ -38,6 +39,8 @@ def _validate(root: Path) -> None:
     _check_path(root, root, directory=True)
     _check_path(root, root / "interests.md")
     _check_path(root, root / "state", directory=True)
+    for path in (root / "state").rglob("*"):
+        _check_path(root, path, directory=path.is_dir())
     _check_path(root, root / "sections", directory=True)
     for path in (root / "sections").glob("*.md"):
         _check_path(root, path)
@@ -106,18 +109,13 @@ def _working(root: Path) -> tuple[list[str], list[str]]:
     return paths, list(filter(None, new.split("\0")))
 
 
-def _outgoing(root: Path, remote: str) -> list[str]:
+def _outgoing(root: Path, remote: str, recovery: str) -> list[str]:
     if _git(root, "merge-base", remote, "HEAD", check=False).returncode:
-        raise PublishError(
-            "Local and remote histories are unrelated. Keep this checkout; clone your "
-            "private repository separately and copy only your accepted personalization."
-        )
+        raise PublishError("Local and remote histories are unrelated. " + recovery)
     commits = _git(root, "rev-list", "--reverse", f"{remote}..HEAD").stdout.splitlines()
     for commit in commits:
         if len(_git(root, "rev-list", "--parents", "-n", "1", commit).stdout.split()) > 2:
-            raise PublishError(
-                "Outgoing merge history is unsupported. Review it manually before publishing."
-            )
+            raise PublishError("Outgoing merge history is unsupported. " + recovery)
         names = _git(
             root,
             "diff-tree",
@@ -133,13 +131,13 @@ def _outgoing(root: Path, remote: str) -> list[str]:
             if not _allowed(name):
                 raise PublishError(
                     f"Outgoing commit {commit[:12]} touches forbidden path {name!r}, even if "
-                    "later deleted. Keep your work and remove that commit "
-                    "from publication manually."
+                    "later deleted. " + recovery
                 )
             tree = _git(root, "ls-tree", "-z", commit, "--", name).stdout
             if tree and tree.split(" ", 1)[0] not in {"100644", "100755"}:
                 raise PublishError(
-                    f"Outgoing commit {commit[:12]} contains a nonregular file: {name!r}."
+                    f"Outgoing commit {commit[:12]} contains a nonregular file: {name!r}. "
+                    + recovery
                 )
     return commits
 
@@ -206,6 +204,14 @@ def publish(root: Path, *, run: bool = False) -> int:
         paths, new = _working(root)
         gh = bootstrap.ensure_tool("gh")
         name, branch, account = _repository(root, gh)
+        recovery = (
+            "Keep this checkout. In a separate directory, run "
+            f"{shlex.quote(str(gh))} repo clone {name} briefing-clean. Copy only accepted "
+            "allowed personalization (interests.md, sections/*.md, state/*.md and other "
+            "reviewed allowlisted files) into that clean clone; do not copy old .git, "
+            "history or credentials. In the clone, run ./briefing validate --dir . "
+            "and ./briefing publish. No history is rewritten automatically."
+        )
         local_branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD", check=False)
         if local_branch.returncode or local_branch.stdout.strip() != branch:
             raise PublishError(
@@ -229,7 +235,7 @@ def publish(root: Path, *, run: bool = False) -> int:
         url = f"https://github.com/{name}.git"
         _git(root, "fetch", "--no-tags", url, f"refs/heads/{branch}", gh_bin=gh)
         remote = _git(root, "rev-parse", "FETCH_HEAD").stdout.strip()
-        commits = _outgoing(root, remote)
+        commits = _outgoing(root, remote, recovery)
         _protect_ignored(root, remote)
         if commits or paths:
             review = _review(root, commits, paths, new)
@@ -238,7 +244,7 @@ def publish(root: Path, *, run: bool = False) -> int:
                 return 130
             _validate(root)
             check_paths, check_new = _working(root)
-            if _review(root, _outgoing(root, remote), check_paths, check_new) != review:
+            if _review(root, _outgoing(root, remote, recovery), check_paths, check_new) != review:
                 raise PublishError(
                     "Work changed during review. Rerun ./briefing publish to review it again."
                 )
@@ -267,19 +273,19 @@ def publish(root: Path, *, run: bool = False) -> int:
                     "git rebase --continue (or --abort), then rerun ./briefing publish."
                 )
             _validate(root)
-            commits = _outgoing(root, remote)
+            commits = _outgoing(root, remote, recovery)
             if commits and _git(root, "rev-parse", "HEAD").stdout.strip() != old_head:
                 review = _review(root, commits, [], [])
                 if not _confirm(review):
                     print("Publication cancelled after rebase; your reviewed local commits remain.")
                     return 130
-                if _review(root, _outgoing(root, remote), *_working(root)) != review:
+                if _review(root, _outgoing(root, remote, recovery), *_working(root)) != review:
                     raise PublishError(
                         "Work changed during review. Rerun ./briefing publish to review it again."
                     )
         _validate(root)
         paths, _ = _working(root)
-        commits = _outgoing(root, remote)
+        commits = _outgoing(root, remote, recovery)
         if paths:
             raise PublishError(
                 "Work changed after review. Rerun ./briefing publish to review it again."

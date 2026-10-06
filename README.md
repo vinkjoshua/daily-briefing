@@ -69,6 +69,14 @@ then retry `./briefing publish`. The command never force-pushes. `--run` request
 an ordinary daily run after publication succeeds; it respects the already-sent
 guard. If dispatch is uncertain, inspect Actions before requesting another run.
 
+If outgoing merges or forbidden files in history block publication, keep the
+original checkout. Use the exact GitHub CLI `repo clone` command shown by the
+error to create a separate clean clone of your private repository; the displayed
+CLI path also works when `gh` is not on PATH. Copy only accepted allowlisted
+personalization into that clone, never the old `.git`, history or credentials.
+From the clean clone, run `./briefing validate --dir .` and `./briefing publish`.
+Publication does not rewrite the original history automatically.
+
 For browser-only setup:
 
 Use the starter template: [vinkjoshua/daily-briefing-template](https://github.com/vinkjoshua/daily-briefing-template).

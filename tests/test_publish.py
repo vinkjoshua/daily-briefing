@@ -456,3 +456,85 @@ def test_cancel_after_rebase_keeps_local_commits_without_pushing(instance, tmp_p
     assert not any(
         a[:2] == ["workflow", "run"] for a in map(json.loads, calls.read_text().splitlines())
     )
+
+
+def test_existing_upstream_state_symlink_preserves_accepted_edits(instance):
+    root, remote, _, _ = instance
+    state = root / "state/watchlist.md"
+    state.unlink()
+    state.symlink_to("../interests.md")
+    git(root, "add", "state/watchlist.md")
+    git(root, "commit", "-m", "Existing upstream state symlink")
+    git(root, "push", "origin", "main")
+    before = git(remote, "rev-parse", "main")
+    edit(root)
+    accepted = (root / "interests.md").read_bytes()
+    assert publish(root) == 1
+    assert git(remote, "rev-parse", "main") == before
+    assert git(root, "rev-parse", "HEAD") == before
+    assert (root / "interests.md").read_bytes() == accepted
+
+
+def test_incoming_bot_state_symlink_preserves_accepted_local_commit(instance, tmp_path):
+    root, remote, _, _ = instance
+    clone = bot(instance, tmp_path)
+    state = clone / "state/watchlist.md"
+    state.unlink()
+    state.symlink_to("../interests.md")
+    git(clone, "add", "state/watchlist.md")
+    git(clone, "commit", "-m", "Bot state symlink")
+    git(clone, "push", "origin", "main")
+    before = git(remote, "rev-parse", "main")
+    edit(root)
+    accepted = (root / "interests.md").read_bytes()
+    assert publish(root) == 1
+    assert git(remote, "rev-parse", "main") == before
+    assert (root / "interests.md").read_bytes() == accepted
+    assert "Research quantum sensing" in git(root, "show", "HEAD:interests.md")
+
+
+@pytest.mark.parametrize("kind", ["directory_symlink", "fifo"])
+def test_state_descendant_types_are_checked(instance, tmp_path, kind):
+    root, remote, _, _ = instance
+    if kind == "directory_symlink":
+        (root / "state/nested").symlink_to(tmp_path, target_is_directory=True)
+    else:
+        os.mkfifo(root / "state/pipe")
+    edit(root)
+    before = git(remote, "rev-parse", "main")
+    assert publish(root) == 1
+    assert git(remote, "rev-parse", "main") == before
+    assert "quantum sensing" in (root / "interests.md").read_text()
+
+
+@pytest.mark.parametrize("kind", ["merge", "forbidden"])
+def test_rejected_history_gives_preserving_clean_clone_recovery(instance, capsys, kind):
+    root, remote, _, _ = instance
+    before = git(remote, "rev-parse", "main")
+    if kind == "merge":
+        git(root, "checkout", "-b", "feature")
+        edit(root)
+        git(root, "add", "interests.md")
+        git(root, "commit", "-m", "Accepted edits")
+        git(root, "checkout", "main")
+        git(root, "merge", "--no-ff", "feature", "-m", "Unsupported merge")
+    else:
+        (root / "auth.json").write_text("accidental credentials")
+        git(root, "add", "auth.json")
+        git(root, "commit", "-m", "Forbidden history")
+        (root / "auth.json").unlink()
+        git(root, "add", "-u", "auth.json")
+        git(root, "commit", "-m", "Remove forbidden file")
+        edit(root)
+    head = git(root, "rev-parse", "HEAD")
+    assert publish(root) == 1
+    output = capsys.readouterr().out
+    assert "Keep this checkout" in output
+    assert "repo clone tester/briefing briefing-clean" in output and "separate" in output
+    assert str(root.parent / "gh") in output
+    assert "allowed" in output and "personalization" in output
+    assert ".git" in output and "history" in output and "credentials" in output
+    assert "./briefing validate --dir ." in output
+    assert "./briefing publish" in output
+    assert git(root, "rev-parse", "HEAD") == head
+    assert git(remote, "rev-parse", "main") == before
