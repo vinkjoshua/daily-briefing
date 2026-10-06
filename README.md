@@ -46,6 +46,29 @@ expressions for preview settings and symlinked inputs/output are refused.
 The existing `daily-briefing preview MARKDOWN` command still renders a saved draft.
 The generated repository's `AGENTS.md` and `CLAUDE.md` explain the tuning loop.
 
+Publish accepted edits from your instance directory:
+
+```sh
+./briefing publish
+./briefing publish --run
+```
+
+Publication checks your private GitHub repository and account, validates the
+profile, sections and literal workflow settings, and shows every outgoing commit
+plus allowed working changes for confirmation. It publishes interests, section
+and state Markdown, the workflow, launcher, guidance and ignore files. Previews,
+archives, encrypted login files and credentials are excluded, including forbidden
+paths added in an earlier outgoing commit and later deleted. Never put credentials
+inside otherwise allowed files. Staged work and unrelated dirty files stop
+publication with guidance; cancellation preserves your accepted edits.
+
+Bot updates are fetched and rebased using ordinary Git. If conflicts occur, the
+rebase is aborted and your local commit is retained; follow the displayed recovery
+steps and review again. A failed push retains your commit: inspect the remote,
+then retry `./briefing publish`. The command never force-pushes. `--run` requests
+an ordinary daily run after publication succeeds; it respects the already-sent
+guard. If dispatch is uncertain, inspect Actions before requesting another run.
+
 For browser-only setup:
 
 Use the starter template: [vinkjoshua/daily-briefing-template](https://github.com/vinkjoshua/daily-briefing-template).

@@ -76,6 +76,21 @@ at a time, run `./briefing validate --dir .`, preview a briefing, then publish y
 accepted changes. The `briefing` launcher works from any directory, including
 paths with spaces, and runs the pinned daily-briefing 1.1.0 package.
 
+Use `./briefing publish` to review and publish accepted changes, or
+`./briefing publish --run` to request an ordinary daily run afterward. The daily
+guard still prevents a second email for a day already sent. Publication verifies
+the private repository and authenticated owner, validates the local inputs, and
+shows every outgoing commit plus accepted file diffs before asking for confirmation.
+Staged work and unrelated dirty files require manual attention; cancellation
+preserves your edits. Previews, archives and credentials are excluded, including
+forbidden files added and deleted in outgoing history. Keep credentials out of
+allowed files too.
+
+Bot updates are fetched and rebased. A conflict aborts the rebase and retains your
+local commit with recovery instructions. If a push fails, inspect the remote and
+retry `./briefing publish`; never force-push. If dispatch is uncertain, inspect
+Actions before requesting another run.
+
 ## If it needs you
 - **"Reconnect needed" email:** whenever convenient, press **Run workflow** and enter the emailed code. Nothing expires until you press the button.
 - **"Run failed" email:** it retries at the next scheduled attempt. The email links to the log.

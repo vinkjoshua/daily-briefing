@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from daily_briefing import local, mailer, setup
+from daily_briefing import local, mailer, publish, setup
 from daily_briefing.codex import Codex
 from daily_briefing.config import Config, ConfigError
 from daily_briefing.login_store import save_login_if_changed
@@ -138,9 +138,14 @@ def _try(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     return local.try_briefing(Path.cwd(), section=args.section, open_browser=args.open)
 
 
+def _publish(args: argparse.Namespace, env: Mapping[str, str]) -> int:
+    return publish.publish(Path.cwd(), run=args.run)
+
+
 COMMANDS: dict[str, Callable[[argparse.Namespace, Mapping[str, str]], int]] = {
     "init": _init,
     "try": _try,
+    "publish": _publish,
     "guard": _guard,
     "run": _run,
     "persist": _persist,
@@ -165,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     trial = sub.add_parser("try", help="Generate a local HTML preview")
     trial.add_argument("--section", metavar="SLUG")
     trial.add_argument("--open", action="store_true")
+    publication = sub.add_parser("publish", help="Review and publish accepted personal changes")
+    publication.add_argument(
+        "--run", action="store_true", help="Request an ordinary daily run after publishing"
+    )
     sub.add_parser("guard", help="Write skip=true|false to $GITHUB_OUTPUT")
     sub.add_parser("run", help="Generate and email today's briefing")
     sub.add_parser("persist", help="Save the login and commit state")
