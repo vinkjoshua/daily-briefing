@@ -180,3 +180,28 @@ def test_exec_rejects_invalid_auth_store_without_printing_config(fake_codex, tmp
         codex.exec("x")
     assert "test-only-secret" not in str(error.value)
     assert not log.exists()
+
+
+@pytest.mark.parametrize(
+    "operation", ["exec('hello')", "probe()", "device_login(lambda *args: None)"]
+)
+def test_interrupt_reaps_codex_tree_and_reraises(codex_tree, operation):
+    result = codex_tree(
+        f"try:\n    codex.{operation}\n"
+        "except KeyboardInterrupt:\n    print('interruption preserved')\n    sys.exit(130)\n",
+        interrupt=True,
+    )
+    assert result.returncode == 130
+    assert "interruption preserved" in result.stdout
+    assert not result.stderr
+
+
+def test_device_prompt_exception_reaps_codex_tree_and_reraises(codex_tree):
+    result = codex_tree(
+        "def fail_prompt(url, code):\n    raise RuntimeError('callback failed')\n"
+        "try:\n    codex.device_login(fail_prompt)\n"
+        "except RuntimeError as exc:\n    print(exc)\n    sys.exit(17)\n"
+    )
+    assert result.returncode == 17
+    assert result.stdout.strip() == "callback failed"
+    assert not result.stderr

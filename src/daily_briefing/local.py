@@ -156,7 +156,7 @@ def try_briefing(root: Path, *, section: str | None = None, open_browser: bool =
         open_browser: Open the HTML after a successful atomic write.
 
     Returns:
-        Zero on success, one with actionable guidance on failure.
+        Zero on success, one with actionable guidance on failure, 130 on cancellation.
     """
     try:
         root = root.absolute()
@@ -220,6 +220,9 @@ def try_briefing(root: Path, *, section: str | None = None, open_browser: bool =
         if open_browser:
             webbrowser.open(output.as_uri())
         return 0
+    except KeyboardInterrupt:
+        print("Preview cancelled.")
+        return 130
     except (LocalError, SectionError, BootstrapError, OSError, ValueError) as exc:
         print(f"Problem: {exc}")
         return 1

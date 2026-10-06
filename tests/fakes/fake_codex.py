@@ -3,6 +3,7 @@
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -22,6 +23,24 @@ UNAUTHORIZED = (
 DEFAULT_REPLY = "# Daily briefing — Test\n\n## Research\nHello\n"
 
 
+def hang_with_child() -> None:
+    child = subprocess.Popen(["sleep", "30"])
+
+    def stop(signum, frame):
+        # Reap the descendant; only the wrapper's group signal should stop it.
+        child.wait()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, stop)
+    Path(os.environ["FAKE_CODEX_PIDFILE"]).write_text(str(child.pid), encoding="utf-8")
+    if parentfile := os.environ.get("FAKE_CODEX_PARENT_PIDFILE"):
+        Path(parentfile).write_text(str(os.getpid()), encoding="utf-8")
+    if sys.argv[1] == "login":
+        sys.stdout.write(DEVICE_PROMPT)
+        sys.stdout.flush()
+    time.sleep(30)
+
+
 def record(args: list[str], prompt: str = "") -> None:
     log = os.environ.get("FAKE_CODEX_LOG")
     if log:
@@ -39,6 +58,9 @@ def main() -> int:
     if args[:2] == ["login", "--device-auth"]:
         record(args)
         mode = os.environ.get("FAKE_CODEX_LOGIN", "approve")
+        if mode == "hang-child":
+            hang_with_child()
+            return 0
         if mode == "silent":
             return 1
         if mode == "error":
@@ -65,10 +87,8 @@ def main() -> int:
         if mode == "hang":
             time.sleep(30)
             return 0
-        if mode == "hang-child":
-            child = subprocess.Popen(["sleep", "30"])
-            Path(os.environ["FAKE_CODEX_PIDFILE"]).write_text(str(child.pid), encoding="utf-8")
-            time.sleep(30)
+        if mode == "hang-child" or (mode == "hang-generation" and "-o" in args):
+            hang_with_child()
             return 0
         if mode == "fail":
             print("ERROR: stream disconnected before completion")

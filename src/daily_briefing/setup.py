@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from daily_briefing import mailer
 from daily_briefing.bootstrap import BootstrapError, ensure_tool
 from daily_briefing.github import CommandError, git, run_gh
+from daily_briefing.sections import SectionError, parse_section
 
 STATE = "daily-briefing-init.json"
 SECRET_NAMES = {"SMTP_USER", "SMTP_PASSWORD", "BRIEFING_KEY"}
@@ -447,6 +448,11 @@ def _initialize(root: Path, state: dict, gh: Path, account: dict) -> int:
     if not state.get("prepared"):
         _collect(root, state)
     print(f"Publish {root} to private repository {state['repo']}?")
+    print(f"Recipient: {state['recipient']}")
+    print("Sections:")
+    for name in state["sections"]:
+        section = parse_section((root / "sections" / name).read_text(), Path(name).stem)
+        print(f"  {section.title} ({name})")
     print(f"Schedule: {state['start']} {state['timezone']}, up to two same-day hourly retries.")
     print("SMTP secrets are uploaded before the workflow is pushed.")
     if not _confirm("Publish these accepted files"):
@@ -627,7 +633,15 @@ def initialize(directory: Path) -> int:
         return _initialize(root, state, gh, account)
     except (KeyboardInterrupt, EOFError):
         raise SetupCancelled(root) from None
-    except (SetupError, BootstrapError, CommandError, OSError, ValueError, KeyError) as error:
+    except (
+        SetupError,
+        SectionError,
+        BootstrapError,
+        CommandError,
+        OSError,
+        ValueError,
+        KeyError,
+    ) as error:
         print(f"Setup stopped: {error}")
         print(
             "Accepted files are preserved. Resume with "

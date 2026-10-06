@@ -43,14 +43,13 @@ def _kill_group(proc: subprocess.Popen[str]) -> None:
     Args:
         proc: A process started with start_new_session=True.
     """
-    try:
+    with contextlib.suppress(ProcessLookupError):
         os.killpg(proc.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
     with contextlib.suppress(subprocess.TimeoutExpired):
         proc.wait(timeout=10)
     with contextlib.suppress(ProcessLookupError):
         os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
 
 
 class Codex:
@@ -168,6 +167,10 @@ class Codex:
             stdout, stderr = proc.communicate()
             output = _text(stdout) + _text(stderr)
             return CodexResult(124, output + f"\ncodex timed out after {timeout:.0f}s")
+        except BaseException:
+            _kill_group(proc)
+            proc.communicate()
+            raise
         return CodexResult(proc.returncode, stdout + stderr)
 
     def probe(self) -> CodexResult:
@@ -213,9 +216,9 @@ class Codex:
             _kill_group(proc)
 
         watchdog = threading.Timer(timeout, expire)
-        watchdog.start()
         seen, announced = "", False
         try:
+            watchdog.start()
             assert proc.stdout is not None
             for line in proc.stdout:
                 seen += line
@@ -226,5 +229,12 @@ class Codex:
             if expired.is_set():
                 return CodexResult(124, seen + f"\ncodex login timed out after {timeout:.0f}s")
             return CodexResult(returncode, seen)
+        except BaseException:
+            _kill_group(proc)
+            raise
         finally:
             watchdog.cancel()
+            if watchdog.ident is not None:
+                watchdog.join()
+            if proc.stdout is not None:
+                proc.stdout.close()

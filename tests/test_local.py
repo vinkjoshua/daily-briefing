@@ -46,6 +46,31 @@ def snapshot(root):
     return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
 
 
+@pytest.mark.parametrize("stage", ["probe", "generation"])
+def test_try_interrupt_stops_processes_and_preserves_source(workspace, codex_tree, stage):
+    (workspace / "preview.html").write_text("accepted preview")
+    before = snapshot(workspace)
+    result = codex_tree(
+        "import os\nfrom daily_briefing import cli, local\n"
+        f"os.chdir({str(workspace)!r})\n"
+        "os.environ['CODEX_HOME'] = str(home)\n"
+        "local.ensure_tool = lambda tool: Path(binary)\n"
+        "def make_codex(binary, auth, workdir):\n"
+        "    global preview_workdir\n    preview_workdir = workdir\n"
+        "    return Codex(binary, auth, workdir, extra_env=extra)\n"
+        "local.Codex = make_codex\n"
+        "status = cli.main(['try'])\n"
+        "assert not preview_workdir.exists(), 'preview workspace survived cancellation'\n"
+        "sys.exit(status)\n",
+        interrupt=True,
+        exec_mode="hang-generation" if stage == "generation" else "hang-child",
+    )
+    assert result.returncode == 130
+    assert "cancelled" in result.stdout.lower()
+    assert "Traceback" not in result.stderr
+    assert snapshot(workspace) == before
+
+
 @pytest.mark.parametrize("section", [None, "10-research"])
 def test_preview_uses_isolated_inputs_and_keeps_repo_unchanged(
     workspace, monkeypatch, tmp_path, section

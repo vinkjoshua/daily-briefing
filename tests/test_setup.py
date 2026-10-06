@@ -142,6 +142,45 @@ def read_state(root):
     return json.loads((root / ".git/daily-briefing-init.json").read_text())
 
 
+@pytest.mark.parametrize("resume", [False, True])
+@pytest.mark.parametrize("recipient", ["", "reader@example.com"])
+def test_publication_review_shows_accepted_recipient_and_sections(
+    setup_env, monkeypatch, capsys, resume, recipient
+):
+    setup, fake, root, _ = setup_env
+    values = initial(root)[:-2]
+    values[5] = recipient
+    if resume:
+        answers(monkeypatch, [*values, "n"])
+        assert setup.initialize(root) == 0
+        capsys.readouterr()
+        section = root / "sections/10-research.md"
+        section.write_text(
+            section.read_text().replace("title: Research", "title: Accepted research")
+        )
+        values = ["a@example.com", recipient]
+    iterator = iter(values)
+
+    def answer(prompt):
+        if prompt.startswith("Publish these accepted files"):
+            summary = capsys.readouterr().out.split(f"Publish {root}", 1)[1]
+            assert "alice/daily" in summary
+            assert f"Recipient: {recipient or 'a@example.com'}" in summary
+            assert ("Accepted research" if resume else "Research") in summary
+            assert "10-research.md" in summary
+            assert "This week" in summary and "40-this-week.md" in summary
+            assert "20-open-source.md" not in summary
+            assert "abcd efgh" not in summary and "abcdefgh" not in summary
+            return "n"
+        return next(iterator)
+
+    monkeypatch.setattr("builtins.input", answer)
+    monkeypatch.setattr(setup.getpass, "getpass", lambda prompt: "abcd efgh")
+    assert setup.initialize(root) == 0
+    assert fake.repo is None and not fake.secrets
+    assert "abcdefgh" not in (root / ".git/daily-briefing-init.json").read_text()
+
+
 def test_cli_registers_init_with_default(monkeypatch):
     assert "init" in cli.COMMANDS
 
