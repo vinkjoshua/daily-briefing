@@ -347,7 +347,7 @@ def test_generated_launcher_uses_own_directory_from_any_cwd(setup_env, monkeypat
         "tool",
         "run",
         "--from",
-        "daily-briefing==1.1.0",
+        "git+https://github.com/vinkjoshua/daily-briefing@v1.1.0",
         "daily-briefing",
         "validate",
     ]

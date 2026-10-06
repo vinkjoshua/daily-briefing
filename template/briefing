@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 cd -- "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-exec uv tool run --from 'daily-briefing==1.1.0' daily-briefing "$@"
+exec uv tool run --from 'git+https://github.com/vinkjoshua/daily-briefing@v1.1.0' daily-briefing "$@"

@@ -1,7 +1,7 @@
 [project]
 name = "daily-briefing"
-version = "1.0.0"
-description = "A daily briefing email written by Codex on your own ChatGPT plan, run free on GitHub Actions."
+version = "1.1.0"
+description = "A personal daily briefing email written by Codex and run on GitHub Actions."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"

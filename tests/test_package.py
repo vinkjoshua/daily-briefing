@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -15,6 +16,14 @@ def test_built_wheel_exposes_complete_starter_resources(tmp_path, monkeypatch):
     build = pytest.importorskip("hatchling.build", reason="Hatchling unavailable in offline cache")
     monkeypatch.chdir(ROOT)
     wheel = tmp_path / build.build_wheel(str(tmp_path))
+    sdist = tmp_path / build.build_sdist(str(tmp_path))
+    with tarfile.open(sdist) as archive:
+        prefix = archive.getnames()[0].split("/")[0]
+        for source in (ROOT / "template").rglob("*"):
+            if source.is_file():
+                relative = source.relative_to(ROOT).as_posix()
+                member = archive.extractfile(f"{prefix}/{relative}")
+                assert member is not None and member.read() == source.read_bytes()
     with zipfile.ZipFile(wheel) as archive:
         for source in (ROOT / "template").rglob("*"):
             if source.is_file():

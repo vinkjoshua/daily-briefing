@@ -1,6 +1,6 @@
 # daily-briefing
 
-A GitHub Action that has Codex research your interests every morning and email you a short, sourced briefing. It runs on your own ChatGPT plan and on GitHub Actions' free minutes.
+A GitHub Action that has Codex research your interests every morning and email you a short, sourced briefing. It uses your own ChatGPT account and GitHub Actions allowance.
 
 ![Example email](docs/screenshot.png)
 
@@ -14,16 +14,47 @@ A GitHub Action that has Codex research your interests every morning and email y
 
 ## Quick start
 
-For guided setup, install Git and uv, then run:
+Use macOS, Linux or WSL on x86-64 or ARM64. Install [Git](https://git-scm.com/downloads)
+and [uv](https://docs.astral.sh/uv/getting-started/installation/), with Python 3.11
+or newer available (uv can install Python). Internet access, a personal GitHub
+account, a Codex-enabled ChatGPT account and SMTP access are required. Setup
+downloads GitHub CLI 2.102.0 when needed; local previews download Codex 0.160.0.
+Native Windows shells are not supported; use WSL.
+
+Install the released CLI from the engine's Git tag, then start guided setup:
 
 ```sh
-uv tool run --from daily-briefing==1.1.0 daily-briefing init my-briefing
+uv tool install 'git+https://github.com/vinkjoshua/daily-briefing@v1.1.0'
+daily-briefing init my-briefing
 ```
 
 Setup confirms your personal GitHub account, tests email before creating a private
 repository, collects interests and sections, and installs secrets before publishing
 the workflow. Review its summary, then optionally launch your first cloud run.
+If the installed command is not on PATH, run `uv tool update-shell` and reopen your
+shell. The instance's `./briefing` launcher uses the same `v1.1.0` Git source;
+the cloud action remains `vinkjoshua/daily-briefing@v1`.
 Rerun `daily-briefing init my-briefing` after cancelling to preserve accepted files.
+
+Guided setup defaults to `my-briefing`, Gmail SMTP on port 465, the sender as
+recipient, a detected IANA timezone (UTC if unavailable), and a 07:00 start.
+Choose one or more of the five starter sections. The model defaults to Codex's
+default and reasoning effort to `high`. Retries run hourly up to twice, ending
+before local midnight. GitHub schedules run approximately at the requested time,
+can be delayed or skipped under load, and only run on the default branch; keep
+the schedule and action timezone values identical.
+[GitHub schedule reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
+For email, use a provider app password rather than your normal account password:
+[Gmail app passwords](https://support.google.com/accounts/answer/185833) require
+2-Step Verification and may be unavailable for some accounts;
+[Apple app-specific passwords](https://support.apple.com/en-gb/102654) require
+two-factor authentication. Fastmail needs an app password with mail access and a
+plan supporting SMTP; see [Fastmail setup](https://www.fastmail.help/hc/en-us/articles/360058752834-Set-up-Fastmail-on-your-device)
+and [server settings](https://www.fastmail.help/hc/en-us/articles/1500000278342-Server-names-and-ports).
+Custom SMTP providers must support implicit TLS on 465 or STARTTLS on another
+port (usually 587). Setup sends a test email before creating the repository;
+passwords and the generated encryption key stay out of local progress files.
 
 From your instance directory, generate a local preview:
 
@@ -36,7 +67,10 @@ From your instance directory, generate a local preview:
 `.github/workflows/briefing.yml`. It reuses your local Codex browser login
 (`CODEX_HOME`, or `~/.codex`) and its file, keyring or auto credential store.
 If login is needed, run the displayed Codex login command locally and try again. No cloud login or
-SMTP secrets are needed for a preview.
+SMTP secrets are needed for a preview. This local login is separate from the
+encrypted cloud login: connecting locally does not connect Actions, and connecting
+Actions does not sign in your laptop. The first cloud run may email a device code;
+complete that login while the run is waiting.
 
 Generation happens in a temporary directory containing your interests, selected
 sections and state. Only `preview.html` is written back; dedup state, archives and
@@ -147,8 +181,19 @@ The starter template ships five sections: Research, Open-source radar, Professio
 
 ## Costs
 
-- About 450 of the 2,000 free GitHub Actions minutes a month for private repositories.
-- Codex usage counts against your ChatGPT plan.
+Codex generation and previews count against your account's usage limits. GitHub
+Actions runs consume your account's allowance; runtime, retries, runner platform
+and plan affect the total. SMTP access may require a paid email plan. Check your
+providers' current plans and usage pages; this project does not promise a fixed
+monthly cost or free service.
+
+## Available commands
+
+`init`, `try`, `publish`, `validate` and saved-Markdown `preview` are available.
+`guard`, `run` and `persist` remain the cloud engine commands. There is no local
+`status`, `doctor`, `reset`, `upgrade`, `force` or cloud credential migration
+command in this release. Use Actions and the documented manual recovery steps;
+the browser workflow's explicit `force` input is still available.
 
 ## Development
 
@@ -156,8 +201,15 @@ The starter template ships five sections: Research, Open-source radar, Professio
 uv sync
 uv run pytest
 uv run ruff check
+uv run ruff format --check
+uv build
 uv run daily-briefing preview examples/sample-briefing.md --sections template/sections
 ```
+
+CI runs pytest and Ruff on Linux/macOS with Python 3.11–3.14, builds wheel and
+sdist, rebuilds the sdist, and checks an isolated installed CLI and starter.
+For candidate Git refs, WSL and real private-repository acceptance (including a
+scheduled run), follow [the release checklist](docs/release-acceptance.md).
 
 ## Licence
 
