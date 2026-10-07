@@ -12,62 +12,50 @@ from jinja2 import Environment
 from markdown_it import MarkdownIt
 
 PALETTE: dict[str, str] = {
-    "deep": "#052e16",
-    "green": "#166534",
-    "accent": "#15803d",
-    "link": "#065f46",
-    "underline": "#86efac",
-    "mint": "#dcfce7",
-    "mint_light": "#f0fdf4",
-    "mint_text": "#86efac",
-    "page": "#e6eee9",
-    "border": "#cfe0d5",
-    "text": "#1f2937",
-    "muted": "#5f6b66",
+    "page": "#F7F4ED",
+    "text": "#272A2C",
+    "accent": "#526B7A",
+    "link": "#526B7A",
+    "muted": "#686D70",
+    "border": "#D9DDD9",
 }
 C = PALETTE
 FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+SERIF = "Georgia, 'Times New Roman', serif"
 MONO = "Consolas, Menlo, monospace"
 DEFAULT_ICON = "•"
+WRAP = "overflow-wrap:anywhere; word-break:break-word;"
 
-# Gmail is most reliable with inline styles, so every rendered tag gets one.
+# Email clients need explicit inline styles on content and layout cells.
 TAG_STYLES: dict[str, str] = {
-    "p": f"margin:0 0 12px; font-size:14.5px; line-height:1.6; color:{C['text']};",
-    "ul": "margin:0 0 12px; padding-left:20px;",
-    "ol": "margin:0 0 12px; padding-left:20px;",
-    "li": f"margin:0 0 10px; font-size:14.5px; line-height:1.6; color:{C['text']};",
-    "h3": f"margin:16px 0 6px; font-size:15px; color:{C['deep']};",
-    "a": f"color:{C['link']}; text-decoration:none; border-bottom:1px solid {C['underline']};",
-    "strong": "color:#111827;",
-    "code": (
-        f"background:{C['mint_light']}; color:#065f46; border:1px solid {C['mint']};"
-        f" border-radius:4px; padding:1px 5px; font-family:{MONO}; font-size:12.5px;"
-    ),
+    "p": f"margin:0 0 16px; font-size:16px; line-height:1.65; color:{C['text']};",
+    "ul": "margin:0 0 16px; padding-left:22px;",
+    "ol": "margin:0 0 16px; padding-left:22px;",
+    "li": f"margin:0 0 12px; font-size:16px; line-height:1.65; color:{C['text']};",
+    "h3": f"margin:20px 0 8px; font-size:18px; color:{C['text']};",
+    "a": f"color:{C['link']}; text-decoration:underline; {WRAP}",
+    "strong": "color:inherit;",
+    "code": f"color:{C['text']}; font-family:{MONO}; font-size:14px; {WRAP}",
     "pre": (
-        f"background:{C['mint_light']}; border:1px solid {C['mint']}; border-radius:8px;"
-        " padding:10px 12px; overflow-x:auto; font-size:12.5px; line-height:1.5;"
-        " white-space:pre-wrap;"
+        f"margin:0 0 16px; padding:12px 0; border-top:1px solid {C['border']};"
+        f" border-bottom:1px solid {C['border']}; font-family:{MONO};"
+        f" font-size:14px; line-height:1.5; white-space:pre-wrap; {WRAP}"
     ),
-    "table": "border-collapse:collapse; width:100%; margin:0 0 12px; font-size:13.5px;",
+    "table": (
+        "border-collapse:collapse; table-layout:fixed; width:100%;"
+        " margin:0 0 16px; font-size:14px; line-height:1.5;"
+    ),
     "th": (
-        f"background:{C['mint_light']}; color:{C['deep']}; text-align:left; padding:6px 8px;"
-        f" border:1px solid {C['border']};"
+        f"color:{C['text']}; text-align:left; padding:8px 6px;"
+        f" border-bottom:1px solid {C['border']}; {WRAP}"
     ),
-    "td": f"padding:6px 8px; border:1px solid {C['border']}; vertical-align:top;",
+    "td": f"padding:8px 6px; border-bottom:1px solid {C['border']}; vertical-align:top; {WRAP}",
     "blockquote": (
-        f"margin:0 0 12px; padding:8px 14px; border-left:3px solid {C['accent']};"
-        f" background:{C['mint_light']}; color:{C['deep']};"
+        f"margin:0 0 16px; padding:0 0 0 14px; border-left:1px solid {C['border']};"
+        f" color:{C['text']};"
     ),
-    "hr": f"border:0; border-top:1px solid {C['border']}; margin:16px 0;",
+    "hr": f"border:0; border-top:1px solid {C['border']}; margin:24px 0;",
 }
-PILL = (
-    "display:inline-block; border-radius:999px; padding:3px 10px; font-size:11px;"
-    " font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin:4px 0 10px;"
-)
-BADGE = (
-    f"display:inline-block; background:{C['deep']}; color:#ffffff; border-radius:999px;"
-    " padding:1px 8px; font-size:11px; font-weight:700; letter-spacing:0.04em; margin-right:4px;"
-)
 
 _MD = (
     MarkdownIt("commonmark", {"html": False})
@@ -82,7 +70,7 @@ _TEMPLATE = Environment(autoescape=True).from_string(
 
 @dataclass(frozen=True)
 class RenderedSection:
-    """One section card in the email."""
+    """One section in the email; icon metadata is retained for compatibility."""
 
     title: str
     icon: str
@@ -138,19 +126,8 @@ def _inline_styles(html: str) -> str:
     return re.sub(r"<([a-z0-9]+)(\s[^>]*)?>", repl, html)
 
 
-def _pill(match: re.Match[str]) -> str:
-    """Render a lone bold label paragraph as a pill; ALL-CAPS labels are dark."""
-    label = match.group(1)
-    colours = (
-        f"background:{C['deep']}; color:#ffffff;"
-        if label.isupper()
-        else f"background:{C['mint']}; color:{C['deep']};"
-    )
-    return f'<div><span style="{PILL} {colours}">{label}</span></div>'
-
-
 def markdown_to_html(markdown: str) -> str:
-    """Render Markdown to inline-styled HTML with pills, badges and green lead-ins.
+    """Render authored Markdown to restrained, inline-styled email HTML.
 
     Args:
         markdown: A Markdown fragment.
@@ -158,19 +135,7 @@ def markdown_to_html(markdown: str) -> str:
     Returns:
         HTML suitable for an email body.
     """
-    html = _MD.render(markdown)
-    html = re.sub(r"<p><strong>([^<:]{1,30})</strong></p>", _pill, html)
-    html = re.sub(
-        r"(<li>(?:\s*<p>)?)<strong>([^<]{1,20})</strong>\s*—\s*",
-        lambda m: f'{m.group(1)}<span style="{BADGE}">{m.group(2)}</span> ',
-        html,
-    )
-    html = re.sub(
-        r"<strong>([^<]{1,25}:)</strong>",
-        lambda m: f'<strong style="color:{C["green"]};">{m.group(1)}</strong>',
-        html,
-    )
-    return _inline_styles(html)
+    return _inline_styles(_MD.render(markdown))
 
 
 def _plain(markdown: str) -> str:
@@ -278,4 +243,6 @@ def render_html(briefing: Briefing, *, repo_url: str = "", generated: str = "") 
         repo_url=repo_url,
         c=PALETTE,
         font=FONT,
+        serif=SERIF,
+        wrap=WRAP,
     )

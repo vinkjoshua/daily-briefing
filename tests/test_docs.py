@@ -17,7 +17,8 @@ def test_sample_renders(tmp_path):
     ]
     assert cli.main(args) == 0
     html = out.read_text(encoding="utf-8")
-    assert html.count("border-top:4px solid") == 5
+    assert html.count("<h2 ") == 5
+    assert ">Research</h2>" in html and ">Book ahead</h2>" in html
 
 
 def test_readme_covers_essentials():
