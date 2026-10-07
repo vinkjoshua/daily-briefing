@@ -13,11 +13,11 @@ from markdown_it import MarkdownIt
 
 PALETTE: dict[str, str] = {
     "page": "#F7F4ED",
-    "text": "#272A2C",
-    "accent": "#526B7A",
-    "link": "#526B7A",
-    "muted": "#686D70",
-    "border": "#D9DDD9",
+    "text": "#2D2728",
+    "accent": "#713B46",
+    "link": "#713B46",
+    "muted": "#72676A",
+    "border": "#DDCDC7",
 }
 C = PALETTE
 FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"

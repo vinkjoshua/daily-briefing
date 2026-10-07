@@ -30,3 +30,7 @@ Read the existing renderer, template, tests, CLI callers, and sample before edit
 
 - https://thebrowser.com/sample/ — headline, source, summary and separator rhythm.
 - https://mailchimp.com/help/limitations-of-html-email/ — basic table layout, inline styles and system fonts.
+
+## User-requested burgundy revision
+
+After reviewing the ivory/slate preview, the user requested burgundy and ivory with stronger visual hierarchy. The revised palette is page `#F7F4ED`, text `#2D2728`, accent/link `#713B46`, muted `#72676A`, border `#DDCDC7`. One square burgundy masthead has 24px padding, an ivory 48px Georgia kicker (1.05 line height, -1px tracking), 16px headline and 13px metadata. Section headings are 26px Georgia burgundy with thin burgundy dividers. Action today remains unfilled with a left burgundy rule, inset and 18px italic Georgia label. Body text remains 16px and the fluid column remains capped at 640px; no rounded cards, pills or extra Markdown transforms. Links stay underlined and bold inherits its surrounding colour.

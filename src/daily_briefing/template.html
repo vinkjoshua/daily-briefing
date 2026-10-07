@@ -11,23 +11,25 @@
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{{ c.page }}; table-layout:fixed;">
 <tr><td align="center" style="padding:32px 16px 40px; font-family:{{ font }};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px; table-layout:fixed; color:{{ c.text }};">
-  <tr><td style="padding:0 0 24px; border-bottom:1px solid {{ c.border }}; font-family:{{ font }}; {{ wrap }}">
-    <h1 style="margin:0 0 10px; font-family:{{ serif }}; font-size:34px; line-height:1.2; font-weight:400; color:{{ c.text }};">{{ kicker }}</h1>
-    <p style="margin:0 0 8px; font-size:18px; line-height:1.5; color:{{ c.text }};">{{ headline }}</p>
-    <p style="margin:0; font-size:13px; line-height:1.5; color:{{ c.muted }};">{{ sections|length }} section{{ "s" if sections|length != 1 else "" }} · {{ read_min }} min read</p>
+  <tr><td style="background:{{ c.accent }}; padding:24px; font-family:{{ font }}; {{ wrap }}">
+    <h1 style="margin:0 0 10px; font-family:{{ serif }}; font-size:48px; line-height:1.05; letter-spacing:-1px; font-weight:400; color:{{ c.page }};">{{ kicker }}</h1>
+    <p style="margin:0 0 8px; font-size:16px; line-height:1.5; color:{{ c.page }};">{{ headline }}</p>
+    <p style="margin:0; font-size:13px; line-height:1.5; color:{{ c.page }};">{{ sections|length }} section{{ "s" if sections|length != 1 else "" }} · {{ read_min }} min read</p>
   </td></tr>
   {% if action %}
   <tr><td style="padding:24px 0 0; font-family:{{ font }}; {{ wrap }}">
-    <p style="margin:0 0 6px; font-size:13px; line-height:1.5; font-weight:700; color:{{ c.accent }};">Action today</p>
+    <div style="border-left:1px solid {{ c.accent }}; padding-left:16px;">
+    <p style="margin:0 0 6px; font-family:{{ serif }}; font-size:18px; line-height:1.5; font-style:italic; color:{{ c.accent }};">Action today</p>
     <div style="font-size:16px; line-height:1.65; color:{{ c.text }};">{{ action|safe }}</div>
+    </div>
   </td></tr>
   {% endif %}
   {% if intro %}
   <tr><td style="padding:24px 0 0; font-family:{{ font }}; {{ wrap }}">{{ intro|safe }}</td></tr>
   {% endif %}
   {% for s in sections %}
-  <tr><td style="padding:28px 0 12px;{% if not loop.first %} border-top:1px solid {{ c.border }};{% endif %} font-family:{{ font }}; {{ wrap }}">
-    <h2 style="margin:0 0 16px; font-family:{{ serif }}; font-size:22px; line-height:1.3; font-weight:400; color:{{ c.text }};">{{ s.title }}</h2>
+  <tr><td style="padding:28px 0 12px;{% if not loop.first %} border-top:1px solid {{ c.accent }};{% endif %} font-family:{{ font }}; {{ wrap }}">
+    <h2 style="margin:0 0 16px; font-family:{{ serif }}; font-size:26px; line-height:1.3; font-weight:400; color:{{ c.accent }};">{{ s.title }}</h2>
     {{ s.html|safe }}
   </td></tr>
   {% endfor %}
