@@ -43,7 +43,7 @@ def test_template_sections():
 def test_workflow():
     wf = yaml.safe_load((TEMPLATE / ".github/workflows/briefing.yml").read_text())
     triggers = wf[True] if True in wf else wf["on"]  # PyYAML parses `on` as True
-    assert triggers["schedule"] == [{"cron": "0 7,8,9 * * *", "timezone": "UTC"}]
+    assert triggers["schedule"] == [{"cron": "0 7,8,9 * * *", "timezone": "Etc/UTC"}]
     assert "workflow_dispatch" in triggers
     assert wf["permissions"] == {"contents": "write"}
     assert wf["concurrency"]["cancel-in-progress"] is False
@@ -53,6 +53,7 @@ def test_workflow():
     assert wf["jobs"]["briefing"]["if"] == "${{ !github.event.repository.is_template }}"
     assert wf["jobs"]["briefing"]["timeout-minutes"] == 75
     assert steps[1]["uses"] == "vinkjoshua/daily-briefing@v1"
+    assert steps[1]["with"]["timezone"] == triggers["schedule"][0]["timezone"]
     assert steps[1]["with"]["auth-key"] == "${{ secrets.BRIEFING_KEY }}"
 
 
