@@ -4,6 +4,9 @@ A GitHub Action that has Codex research your interests every morning and email y
 
 ![Example email](docs/screenshot.png)
 
+The [sample briefing](examples/sample-briefing.md) is illustrative: its organisations,
+projects, events and program details are fictional, with example.org links.
+
 ## How it works
 
 1. **Schedule.** The workflow runs at your chosen local time, with up to two same-day hourly retries. The browser starter defaults to 07:00, 08:00 and 09:00 UTC.

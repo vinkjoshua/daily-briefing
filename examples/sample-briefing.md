@@ -1,6 +1,6 @@
 # Daily briefing — Wednesday 7 October
 
-**Action today:** Request approval for the Canal AI Guild evening and register for the Rotterdam Agents Meetup (40 seats) and check that presale access for the Northern Lights Festival opens Friday.
+**Action today:** Request Canal AI Guild approval, register for Rotterdam Agents Meetup (40 seats), and join the festival presale list before Friday.
 
 ## Research
 
@@ -27,21 +27,21 @@ An open-model workshop and three eval talks put agent implementation on the loca
 
 ## This week
 
-Open studios, a Thursday jazz set and a Friday market give you three different reasons to get out this week.
+Printmaking demonstrations, improvised jazz and an autumn produce market offer three different outings this week.
 
-- Open studio weekend at the Riverside Gallery — Sat 10 and Sun 11 Oct, 11:00–17:00, free, no ticket needed, so you can drop in to explore the studios without booking ahead. [Link](https://example.org/whatson/open-studio)
-- Jazz at the Old Dock — Thursday 8 Oct, 20:30, €18, selling fast; a live jazz option for Thursday evening, with tickets worth checking now. [Link](https://example.org/whatson/jazz-old-dock)
-- Autumn market on Cathedral Square — Friday 9 Oct, 09:00–15:00, free, making it an easy daytime stop without a ticket commitment. [Link](https://example.org/whatson/autumn-market)
+- Open studio weekend at the Riverside Gallery — Sat 10 and Sun 11 Oct, 11:00–17:00, free, no ticket needed. Artists will demonstrate printmaking, a chance to see how a finished image takes shape at the press. [Link](https://example.org/whatson/open-studio)
+- Jazz at the Old Dock — Thursday 8 Oct, 20:30, €18, selling fast. A piano trio builds its set around improvisation, so familiar standards become a starting point for something new. [Link](https://example.org/whatson/jazz-old-dock)
+- Autumn market on Cathedral Square — Friday 9 Oct, 09:00–15:00, free. Growers are bringing autumn produce, a chance to find seasonal ingredients and ask what to cook with them. [Link](https://example.org/whatson/autumn-market)
 
 ## Book ahead
 
-A festival presale, weekend exhibition slots and a conference registration window need some advance planning.
+Electronic music, interactive light works and practical systems workshops are the longer-range picks to plan for.
 
 **ACTION**
-- Northern Lights Festival, 12–14 Feb 2027 — presale opens Friday 9 Oct at 10:00; register for the presale list beforehand to be ready when the three-day festival goes on sale. [Link](https://example.org/festival/presale)
-- Modern Light exhibition, until 14 Mar 2027 — timed tickets for weekends are selling; book a slot before the end of the month if a weekend visit is the practical option. [Link](https://example.org/exhibitions/modern-light)
+- Northern Lights Festival, 12–14 Feb 2027 — three days of electronic sets and artist-led sound workshops; join the presale list before sales open Friday 9 Oct at 10:00. [Link](https://example.org/festival/presale)
+- Modern Light exhibition, until 14 Mar 2027 — interactive installations change as visitors move through them, letting you explore light as a material; weekend slots are selling, so book before month-end. [Link](https://example.org/exhibitions/modern-light)
 
 **On the radar**
-- Delta Systems Conference, 18 Mar 2027 — early-bird registration opens in November, a useful window to check before planning a March conference trip. [Link](https://example.org/conf/delta)
+- Delta Systems Conference, 18 Mar 2027 — workshops on observability and failure recovery offer implementation ideas to bring back to a project; early-bird registration opens in November. [Link](https://example.org/conf/delta)
 
 Sources: arXiv, Harbor Systems blog, GitHub Trending, Luma, Riverside Gallery agenda, festival and gallery sites.
