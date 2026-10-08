@@ -2,7 +2,12 @@
 
 A GitHub Action that has Codex research your interests every morning and email you a short, sourced briefing. It uses your own ChatGPT account and GitHub Actions allowance.
 
-![Example email](docs/screenshot.png)
+A burgundy masthead, warm ivory background and serif section headings give the
+email an editorial feel. A short action line highlights timely decisions. Each
+populated section opens with a brief introduction, and item summaries explain
+why a finding or event could be useful or interesting.
+
+![Daily briefing with a burgundy masthead, ivory background, section introductions and sourced recommendations](docs/screenshot.png)
 
 The [sample briefing](examples/sample-briefing.md) is illustrative: its organisations,
 projects, events and program details are fictional, with example.org links.
