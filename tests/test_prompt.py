@@ -26,3 +26,22 @@ def test_prompt_keeps_safety_rules():
     assert "state/seen.md" in prompt
     assert "Only change files under `state/`" in prompt
     assert '"Sources:"' in prompt
+
+
+def test_shared_editorial_contract_reaches_custom_sections():
+    prompt = build_prompt(
+        date(2026, 10, 7), [Section("custom", "Local walks", "", "Choose walks.")]
+    )
+    rules = prompt.split("## Sections", 1)[0]
+    for requirement in (
+        "one short introductory sentence immediately below each populated `##` heading",
+        "today's actual selections",
+        "Within each item's summary paragraph",
+        "verified detail and `interests.md`",
+        "professional, leisure and book-ahead events",
+        "Do not invent preferences",
+        "Why it matters",
+        "without an introduction",
+    ):
+        assert requirement in rules
+    assert "## Local walks" in prompt.split("## Output", 1)[1]
