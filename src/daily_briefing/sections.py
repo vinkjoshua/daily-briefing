@@ -19,7 +19,7 @@ class Section:
     Attributes:
         slug: File name without extension, e.g. "20-open-source".
         title: Heading used in the email.
-        icon: Emoji shown on the section label.
+        icon: Optional emoji metadata, retained for compatibility.
         instructions: What Codex should put in this section.
     """
 

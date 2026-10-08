@@ -244,7 +244,9 @@ def _collect(root: Path, state: dict) -> None:
         hours = ",".join(str(value) for value in range(hour, min(hour + 3, 24)))
         schedule = f"{minute} {hours} * * *"
         text = text.replace('cron: "0 7,8,9 * * *"', "cron: " + json.dumps(schedule))
-        text = text.replace('timezone: "UTC"', "timezone: " + json.dumps(state["timezone"]))
+        # actionlint requires the IANA name rather than the UTC alias in schedules.
+        timezone = "Etc/UTC" if state["timezone"] == "UTC" else state["timezone"]
+        text = text.replace('timezone: "Etc/UTC"', "timezone: " + json.dumps(timezone))
         text = text.replace(
             'smtp-host: "smtp.gmail.com"', "smtp-host: " + json.dumps(state["host"])
         )

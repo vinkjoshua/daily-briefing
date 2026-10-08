@@ -2,14 +2,22 @@
 
 A GitHub Action that has Codex research your interests every morning and email you a short, sourced briefing. It uses your own ChatGPT account and GitHub Actions allowance.
 
-![Example email](docs/screenshot.png)
+A burgundy masthead, warm ivory background and serif section headings give the
+email an editorial feel. A short action line highlights timely decisions. Each
+populated section opens with a brief introduction, and item summaries explain
+why a finding or event could be useful or interesting.
+
+![Daily briefing with a burgundy masthead, ivory background, section introductions and sourced recommendations](docs/screenshot.png)
+
+The [sample briefing](examples/sample-briefing.md) is illustrative: its organisations,
+projects, events and program details are fictional, with example.org links.
 
 ## How it works
 
 1. **Schedule.** The workflow runs at your chosen local time, with up to two same-day hourly retries. The browser starter defaults to 07:00, 08:00 and 09:00 UTC.
 2. **Guard.** If today's briefing was already sent, the run stops. The first attempt that succeeds sends; the others skip.
 3. **Codex with live web search.** Codex reads your `interests.md` and one file per section, searches the web and writes the briefing as Markdown.
-4. **Green HTML email.** The engine renders the Markdown as an HTML email and sends it over SMTP.
+4. **Burgundy and ivory HTML email.** The engine renders the Markdown as an HTML email and sends it over SMTP.
 5. **State and login committed back.** Dedup state, the briefing archive and your encrypted Codex login are committed to your repository.
 
 ## Quick start
@@ -159,7 +167,7 @@ The template workflow uses `actions/checkout@v7`; the action itself uses `action
 
 ## Sections
 
-Each section is one Markdown file in `sections/`. The file name sets the order. Front matter holds the title and icon. The body is the instruction Codex follows for that section.
+Each section is one Markdown file in `sections/`. The file name sets the order. Front matter holds the title and optional icon metadata; icons are accepted for compatibility and omitted from the email. The body is the instruction Codex follows for that section.
 
 ```markdown
 ---

@@ -401,7 +401,9 @@ def test_invalid_instance_is_not_committed(instance, tmp_path, invalid):
         (root / "sections/10-research.md").write_text("invalid section")
     elif invalid == "workflow":
         path = root / ".github/workflows/briefing.yml"
-        path.write_text(path.read_text().replace('timezone: "UTC"', 'timezone: "${{ env.TZ }}"'))
+        path.write_text(
+            path.read_text().replace('timezone: "Etc/UTC"', 'timezone: "${{ env.TZ }}"')
+        )
     elif invalid == "ancestor":
         nested = root / "nested"
         shutil.copytree(root, nested, ignore=shutil.ignore_patterns(".git", "nested"))

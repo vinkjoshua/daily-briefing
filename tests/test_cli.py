@@ -66,7 +66,8 @@ def test_preview_writes_html(ws, tmp_path):
     out = tmp_path / "p.html"
     assert cli.main(["preview", str(md), "--sections", str(ws / "sections"), "-o", str(out)]) == 0
     html = out.read_text(encoding="utf-8")
-    assert "🧠" in html and "Mon" in html
+    assert "🧠" not in html and "Mon" in html
+    assert "<h2" in html and ">Research</h2>" in html
 
 
 def test_run_end_to_end_with_fake_codex(ws, fake_codex, monkeypatch):
@@ -92,7 +93,8 @@ def test_run_end_to_end_with_fake_codex(ws, fake_codex, monkeypatch):
     assert cli.main(["run"]) == 0
     assert len(sent) == 1
     assert sent[0]["Subject"] == "Daily briefing — Test"
-    assert "🧠" in sent[0].get_body(("html",)).get_content()
+    html = sent[0].get_body(("html",)).get_content()
+    assert "🧠" not in html and ">Research</h2>" in html
     assert any((ws / "briefings").glob("*.md"))
 
 

@@ -121,7 +121,16 @@ def answers(monkeypatch, values, password="abcd efgh"):
     monkeypatch.setattr(setup.getpass, "getpass", lambda prompt: password)
 
 
-def initial(root, *, provider="gmail", host=None, city="Utrecht", start="07:00", launch="n"):
+def initial(
+    root,
+    *,
+    provider="gmail",
+    host=None,
+    city="Utrecht",
+    timezone="Europe/Amsterdam",
+    start="07:00",
+    launch="n",
+):
     values = ["y", "daily", str(root), provider]
     if host:
         values += [host, "465"]
@@ -132,7 +141,7 @@ def initial(root, *, provider="gmail", host=None, city="Utrecht", start="07:00",
         "Databases $(touch /tmp/nope)",
         "Music: jazz # safely raw",
         "1,4",
-        "Europe/Amsterdam",
+        timezone,
         start,
         "y",
         launch,
@@ -141,6 +150,16 @@ def initial(root, *, provider="gmail", host=None, city="Utrecht", start="07:00",
 
 def read_state(root):
     return json.loads((root / ".git/daily-briefing-init.json").read_text())
+
+
+@pytest.mark.parametrize("timezone", ["", "UTC", "Etc/UTC"])
+def test_utc_setup_emits_timezone_accepted_by_workflow_linter(setup_env, monkeypatch, timezone):
+    setup, _, root, _ = setup_env
+    answers(monkeypatch, [*initial(root, timezone=timezone)[:-2], "n"])
+    assert setup.initialize(root) == 0
+    workflow = yaml.safe_load((root / ".github/workflows/briefing.yml").read_text())
+    assert workflow[True]["schedule"] == [{"cron": "0 7,8,9 * * *", "timezone": "Etc/UTC"}]
+    assert workflow["jobs"]["briefing"]["steps"][1]["with"]["timezone"] == "Etc/UTC"
 
 
 @pytest.mark.parametrize("resume", [False, True])
